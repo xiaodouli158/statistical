@@ -1,6 +1,7 @@
 export * from "./aggregate/build-number-bars";
 export * from "./aggregate/build-summary-metrics";
 export * from "./aggregate/build-zodiac-bars";
+export * from "./config/odds";
 export * from "./normalize/normalize-draw-result";
 export * from "./parse/parse-orders";
 export * from "./settle/settle-orders";

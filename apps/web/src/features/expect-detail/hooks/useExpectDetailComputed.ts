@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import { buildNumberBars, buildSummaryMetrics, normalizeDrawResult, parseOrders, settleOrders, type SettledOrder } from "@statisticalsystem/parser";
 import type { ExpectDetailResponse } from "@statisticalsystem/shared";
+import { ORDER_ODDS_CONFIG } from "../../../config/odds";
 
 export function useExpectDetailComputed(data: ExpectDetailResponse | null) {
   return useMemo(() => {
@@ -15,7 +16,7 @@ export function useExpectDetailComputed(data: ExpectDetailResponse | null) {
     }
 
     const drawResult = normalizeDrawResult(data.drawResult);
-    const parsed = parseOrders(data.snapshot.messageChunks, drawResult?.openTime ?? data.snapshot.receivedAt);
+    const parsed = parseOrders(data.snapshot.messageChunks, drawResult?.openTime ?? data.snapshot.receivedAt, ORDER_ODDS_CONFIG);
     const settledOrders = settleOrders(parsed.orders, drawResult);
     const summary = buildSummaryMetrics(settledOrders);
     const numberBarsBase = buildNumberBars(settledOrders, drawResult, data.snapshot.receivedAt);

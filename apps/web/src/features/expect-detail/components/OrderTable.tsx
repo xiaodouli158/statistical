@@ -54,13 +54,13 @@ function orderPreviewText(order: SettledOrder): string {
   return order.content || order.raw;
 }
 
-function hitNumberSet(order: SettledOrder): Set<string> {
-  return new Set(order.hitNumbers);
+function hitValueSet(order: SettledOrder): Set<string> {
+  return new Set(order.hitValues);
 }
 
 export function OrderTable({ orders, keyword, onKeywordChange, filter, onFilterChange }: OrderTableProps) {
   const [selectedOrder, setSelectedOrder] = useState<SettledOrder | null>(null);
-  const selectedHitNumbers = selectedOrder ? hitNumberSet(selectedOrder) : null;
+  const selectedHitValues = selectedOrder ? hitValueSet(selectedOrder) : null;
 
   return (
     <>
@@ -171,10 +171,10 @@ export function OrderTable({ orders, keyword, onKeywordChange, filter, onFilterC
             </div>
 
             <div className="order-detail-section">
-              <span className="eyebrow">号码明细</span>
+              <span className="eyebrow">投注明细</span>
               <div className="order-number-chips">
                 {selectedOrder.values.map((value, index) => (
-                  <span className={selectedHitNumbers?.has(value) ? "order-number-chip is-hit" : "order-number-chip"} key={`${value}-${index}`}>
+                  <span className={selectedHitValues?.has(value) ? "order-number-chip is-hit" : "order-number-chip"} key={`${value}-${index}`}>
                     {value}
                   </span>
                 ))}

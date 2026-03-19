@@ -8,8 +8,14 @@ export const BUSINESS_DAY_START_HOUR = 6;
 
 export const SESSION_COOKIE_NAME = "statisticalsystem_session";
 
-export const DEFAULT_NUMBER_ODDS = 47;
+export const DEFAULT_TEMA_DIRECT_ODDS = 47;
 
-export const DEFAULT_ZODIAC_ODDS = 12;
+export const DEFAULT_PING_TE_ODDS = 2;
+
+export const DEFAULT_PING_TE_TAIL_ODDS = 1.8;
+
+export const DEFAULT_NUMBER_ODDS = DEFAULT_TEMA_DIRECT_ODDS;
+
+export const DEFAULT_ZODIAC_ODDS = DEFAULT_PING_TE_ODDS;
 
 export const NUMBER_ORDER_NATURAL = Array.from({ length: 49 }, (_, index) => String(index + 1).padStart(2, "0"));
