@@ -8,7 +8,7 @@ export const BUSINESS_DAY_START_HOUR = 6;
 
 export const SESSION_COOKIE_NAME = "statisticalsystem_session";
 
-export const DEFAULT_NUMBER_ODDS = 48;
+export const DEFAULT_NUMBER_ODDS = 47;
 
 export const DEFAULT_ZODIAC_ODDS = 12;
 

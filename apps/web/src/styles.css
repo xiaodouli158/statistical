@@ -49,6 +49,8 @@ select {
 
 .shell__content {
   padding: 28px;
+  min-width: 0;
+  overflow-x: hidden;
 }
 
 .brand {
@@ -85,6 +87,7 @@ select {
 .page-stack {
   display: grid;
   gap: 18px;
+  min-width: 0;
 }
 
 .page-header h1,
@@ -99,6 +102,7 @@ select {
   padding: 20px;
   background: rgba(255, 252, 246, 0.9);
   box-shadow: 0 18px 40px rgba(73, 54, 28, 0.08);
+  min-width: 0;
 }
 
 .panel__header {
@@ -147,6 +151,22 @@ select {
   font-size: 28px;
 }
 
+.metric-card__value--success {
+  color: #17804f;
+}
+
+.metric-card__value--warning {
+  color: #b76818;
+}
+
+.metric-card__value--danger {
+  color: #cb4747;
+}
+
+.metric-card__value--muted {
+  color: #7a867f;
+}
+
 .expect-header {
   display: flex;
   flex-wrap: wrap;
@@ -166,6 +186,7 @@ select {
 }
 
 .draw-ball {
+  position: relative;
   display: grid;
   place-items: center;
   gap: 4px;
@@ -193,22 +214,41 @@ select {
   font-weight: 700;
 }
 
+.draw-ball__tag {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  border-radius: 999px;
+  padding: 2px 8px;
+  background: rgba(255, 255, 255, 0.22);
+  font-size: 11px;
+}
+
 .draw-ball__meta {
   font-size: 12px;
 }
 
-.bar-chart {
-  display: flex;
-  gap: 10px;
+.bar-chart-scroll {
+  width: 100%;
+  max-width: 100%;
   overflow-x: auto;
+  overflow-y: hidden;
   padding-top: 10px;
+  padding-bottom: 8px;
+  overscroll-behavior-x: contain;
+}
+
+.bar-chart {
+  display: inline-flex;
+  min-width: max-content;
+  gap: 6px;
   align-items: end;
 }
 
 .bar-chart__item {
   display: grid;
-  gap: 8px;
-  min-width: 44px;
+  gap: 6px;
+  min-width: 36px;
   justify-items: center;
 }
 
@@ -219,7 +259,7 @@ select {
 }
 
 .bar-chart__bar {
-  width: 30px;
+  width: 24px;
   border-radius: 12px 12px 4px 4px;
   background: linear-gradient(180deg, #bfcdbd 0%, #6f876a 100%);
 }
@@ -233,6 +273,8 @@ select {
 }
 
 .table-wrap {
+  width: 100%;
+  max-width: 100%;
   overflow-x: auto;
 }
 
@@ -247,6 +289,25 @@ select {
   border-bottom: 1px solid rgba(70, 82, 70, 0.1);
   text-align: left;
   white-space: nowrap;
+}
+
+.data-table__row.is-clickable {
+  cursor: pointer;
+}
+
+.data-table__row.is-clickable:hover {
+  background: rgba(245, 238, 225, 0.72);
+}
+
+.data-table__row.is-clickable:focus-visible {
+  outline: 2px solid rgba(32, 77, 63, 0.35);
+  outline-offset: -2px;
+}
+
+.data-table__content-cell {
+  width: 280px;
+  max-width: 280px;
+  white-space: normal;
 }
 
 .data-table th {
@@ -305,6 +366,139 @@ select {
 
 .error-text {
   color: #c54848;
+}
+
+.help-panel {
+  display: grid;
+  gap: 14px;
+}
+
+.help-panel__intro,
+.help-panel__text {
+  margin: 0;
+  line-height: 1.7;
+}
+
+.help-panel__section {
+  display: grid;
+  gap: 6px;
+}
+
+.help-panel__list {
+  margin: 0;
+  padding-left: 20px;
+  display: grid;
+  gap: 6px;
+}
+
+.amount-text--positive {
+  color: #17804f;
+  font-weight: 700;
+}
+
+.amount-text--negative {
+  color: #cb4747;
+  font-weight: 700;
+}
+
+.amount-text--muted {
+  color: #607169;
+}
+
+.exception-list {
+  margin: 0;
+  padding-left: 20px;
+  display: grid;
+  gap: 10px;
+}
+
+.exception-list__item {
+  display: grid;
+  gap: 4px;
+  color: #c54848;
+}
+
+.exception-list__reason {
+  font-size: 13px;
+}
+
+.order-preview__text {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(18, 36, 31, 0.45);
+}
+
+.modal-card {
+  width: min(760px, 100%);
+  max-height: min(88vh, 920px);
+  overflow-y: auto;
+  border-radius: 24px;
+  padding: 22px;
+  background: #fffaf1;
+  box-shadow: 0 24px 60px rgba(30, 35, 27, 0.28);
+}
+
+.modal-card__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.modal-card__header h3 {
+  margin: 4px 0 0;
+}
+
+.order-detail-grid {
+  display: grid;
+  gap: 14px;
+  margin-top: 18px;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+}
+
+.order-detail-grid > div,
+.order-detail-section {
+  display: grid;
+  gap: 6px;
+}
+
+.order-detail-section {
+  margin-top: 18px;
+}
+
+.order-detail-section__text {
+  margin: 0;
+  line-height: 1.7;
+}
+
+.order-number-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.order-number-chip {
+  border-radius: 999px;
+  padding: 6px 12px;
+  background: rgba(90, 111, 100, 0.12);
+  color: #274135;
+  font-weight: 600;
+}
+
+.order-number-chip.is-hit {
+  background: rgba(203, 71, 71, 0.14);
+  color: #cb4747;
 }
 
 .muted {

@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { buildNumberBars, buildSummaryMetrics, buildZodiacBars, normalizeDrawResult, parseOrders, settleOrders, type SettledOrder } from "@statisticalsystem/parser";
+import { buildNumberBars, buildSummaryMetrics, normalizeDrawResult, parseOrders, settleOrders, type SettledOrder } from "@statisticalsystem/parser";
 import type { ExpectDetailResponse } from "@statisticalsystem/shared";
 
 export function useExpectDetailComputed(data: ExpectDetailResponse | null) {
@@ -8,25 +8,24 @@ export function useExpectDetailComputed(data: ExpectDetailResponse | null) {
       return {
         drawResult: null,
         settledOrders: [] as SettledOrder[],
+        orderExceptions: [],
         summary: buildSummaryMetrics([]),
-        numberBarsBase: buildNumberBars([], null),
-        zodiacBarsBase: buildZodiacBars([], null)
+        numberBarsBase: buildNumberBars([], null, null)
       };
     }
 
     const drawResult = normalizeDrawResult(data.drawResult);
-    const parsedOrders = parseOrders(data.snapshot.messageChunks);
-    const settledOrders = settleOrders(parsedOrders, drawResult);
+    const parsed = parseOrders(data.snapshot.messageChunks, drawResult?.openTime ?? data.snapshot.receivedAt);
+    const settledOrders = settleOrders(parsed.orders, drawResult);
     const summary = buildSummaryMetrics(settledOrders);
-    const numberBarsBase = buildNumberBars(settledOrders, drawResult);
-    const zodiacBarsBase = buildZodiacBars(settledOrders, drawResult);
+    const numberBarsBase = buildNumberBars(settledOrders, drawResult, data.snapshot.receivedAt);
 
     return {
       drawResult,
       settledOrders,
+      orderExceptions: parsed.exceptions,
       summary,
-      numberBarsBase,
-      zodiacBarsBase
+      numberBarsBase
     };
   }, [data]);
 }

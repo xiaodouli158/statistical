@@ -48,20 +48,22 @@ export function BarChartPanel<T extends string>({
         </div>
       }
     >
-      <div className="bar-chart">
-        {visibleItems.map((item) => (
-          <div className="bar-chart__item" key={item.key}>
-            <span className="bar-chart__amount">¥{item.amount.toFixed(0)}</span>
-            <div
-              className={item.highlighted ? "bar-chart__bar is-highlighted" : "bar-chart__bar"}
-              style={{
-                height: `${Math.max((item.amount / max) * 160, item.amount > 0 ? 8 : 2)}px`,
-                background: item.accent ?? undefined
-              }}
-            />
-            <span className="bar-chart__label">{item.label}</span>
-          </div>
-        ))}
+      <div className="bar-chart-scroll">
+        <div className="bar-chart">
+          {visibleItems.map((item) => (
+            <div className="bar-chart__item" key={item.key}>
+              <span className="bar-chart__amount">¥{item.amount.toFixed(0)}</span>
+              <div
+                className={item.highlighted ? "bar-chart__bar is-highlighted" : "bar-chart__bar"}
+                style={{
+                  height: `${Math.max((item.amount / max) * 150, item.amount > 0 ? 8 : 2)}px`,
+                  background: item.accent ?? undefined
+                }}
+              />
+              <span className="bar-chart__label">{item.label}</span>
+            </div>
+          ))}
+        </div>
       </div>
     </Panel>
   );

@@ -1,5 +1,5 @@
 import type { DrawResultRecord, WaveColor } from "@statisticalsystem/shared";
-import { WAVE_COLORS } from "@statisticalsystem/shared";
+import { WAVE_COLORS, getSpecialDrawNumber, getSpecialDrawWave, getSpecialDrawZodiac } from "@statisticalsystem/shared";
 import type { NormalizedDrawResult } from "../types";
 import { normalizeNumberToken } from "../utils/text";
 import { normalizeZodiacName } from "../utils/zodiac";
@@ -27,13 +27,18 @@ export function normalizeDrawResult(drawResult: DrawResultRecord | null): Normal
     .map((item) => normalizeZodiacName(item))
     .filter((item): item is NonNullable<typeof item> => item !== null);
 
+  const waves = normalizeWave(drawResult.wave);
+
   return {
     expect: drawResult.expect,
     openTime: drawResult.openTime,
     type: drawResult.type,
     numbers,
-    waves: normalizeWave(drawResult.wave),
+    waves,
     zodiacs,
+    specialNumber: getSpecialDrawNumber(numbers),
+    specialWave: getSpecialDrawWave(waves),
+    specialZodiac: getSpecialDrawZodiac(zodiacs),
     verify: drawResult.verify,
     raw: drawResult
   };

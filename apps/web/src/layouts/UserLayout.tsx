@@ -20,6 +20,9 @@ export function UserLayout() {
           <NavLink className="nav-link" to="/expects">
             历史期数
           </NavLink>
+          <NavLink className="nav-link" to="/help">
+            投注帮助
+          </NavLink>
         </nav>
         <button className="ghost-button ghost-button--full" type="button" onClick={handleLogout}>
           退出登录

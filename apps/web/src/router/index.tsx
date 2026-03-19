@@ -7,6 +7,7 @@ import { AdminAccountsPage } from "../pages/admin/Accounts";
 import { AdminDataViewerPage } from "../pages/admin/DataViewer";
 import { AdminLoginPage } from "../pages/admin/Login";
 import { AdminUsersPage } from "../pages/admin/Users";
+import { BettingHelpPage } from "../pages/user/BettingHelp";
 import { ExpectDetailPage } from "../pages/user/ExpectDetail";
 import { ExpectsPage } from "../pages/user/Expects";
 import { UserLoginPage } from "../pages/user/Login";
@@ -37,6 +38,10 @@ export const router = createBrowserRouter([
               {
                 path: "expects/:expect",
                 element: <ExpectDetailPage />
+              },
+              {
+                path: "help",
+                element: <BettingHelpPage />
               }
             ]
           }

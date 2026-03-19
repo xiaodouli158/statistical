@@ -2,24 +2,41 @@ import type { DrawResultRecord, NumberSortMode, OrderFilter, WaveColor, ZodiacNa
 
 export type Marker = "各数" | "///" | "---" | "//" | "--" | "各" | "/" | "-";
 
-export type ParsedOrderType = "number" | "zodiac" | "mixed" | "review";
+export type ParsedOrderType = "number";
 
-export type ParsedOrderStatus = "ok" | "review";
+export type ParsedOrderStatus = "ok";
+
+export type PlayType = "特码直投";
 
 export type ParsedOrder = {
   id: string;
   orderNo: number;
   raw: string;
+  sourceContent: string;
   content: string;
-  marker: Marker | null;
+  marker: Marker;
   priceRaw: string | null;
   betCount: number;
   unitPrice: number;
   amount: number;
+  odds: number;
   values: string[];
   zodiacs: ZodiacName[];
+  playType: PlayType;
   type: ParsedOrderType;
   status: ParsedOrderStatus;
+};
+
+export type OrderException = {
+  id: string;
+  raw: string;
+  sourceChunk: string;
+  reason: string;
+};
+
+export type ParseOrdersResult = {
+  orders: ParsedOrder[];
+  exceptions: OrderException[];
 };
 
 export type NormalizedDrawResult = {
@@ -29,6 +46,9 @@ export type NormalizedDrawResult = {
   numbers: string[];
   waves: WaveColor[];
   zodiacs: ZodiacName[];
+  specialNumber: string | null;
+  specialWave: WaveColor | null;
+  specialZodiac: ZodiacName | null;
   verify: boolean;
   raw: DrawResultRecord;
 };
@@ -40,14 +60,14 @@ export type SettledOrder = ParsedOrder & {
   hitNumbers: string[];
   hitZodiacs: ZodiacName[];
   payout: number;
-  resultText: string;
+  houseProfit: number | null;
 };
 
 export type SummaryMetrics = {
   orderCount: number;
-  winOrderCount: number;
-  loseOrderCount: number;
-  winAmount: number;
+  winOrderCount: number | null;
+  loseOrderCount: number | null;
+  winAmount: number | null;
   totalAmount: number;
   profit: number | null;
 };

@@ -26,6 +26,7 @@ export function ExpectHeader({ expect, receivedAt, drawResult }: ExpectHeaderPro
         <div className="draw-strip">
           {drawResult.numbers.map((number, index) => (
             <div className={`draw-ball draw-ball--${drawResult.waves[index] ?? "blue"}`} key={`${number}-${index}`}>
+              {index === drawResult.numbers.length - 1 ? <span className="draw-ball__tag">特码</span> : null}
               <span className="draw-ball__number">{number}</span>
               <span className="draw-ball__meta">{drawResult.zodiacs[index] ?? "-"}</span>
             </div>

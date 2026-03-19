@@ -1,9 +1,10 @@
 import { useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
-import { sortNumberBars, sortZodiacBars } from "../../utils/charts";
+import { sortNumberBars } from "../../utils/charts";
 import { LoadingScreen } from "../../components/LoadingScreen";
 import { BarChartPanel } from "../../features/expect-detail/components/BarChartPanel";
 import { ExpectHeader } from "../../features/expect-detail/components/ExpectHeader";
+import { OrderExceptionList } from "../../features/expect-detail/components/OrderExceptionList";
 import { OrderTable } from "../../features/expect-detail/components/OrderTable";
 import { SummaryCards } from "../../features/expect-detail/components/SummaryCards";
 import { useExpectDetailComputed } from "../../features/expect-detail/hooks/useExpectDetailComputed";
@@ -22,9 +23,7 @@ export function ExpectDetailPage() {
   const [orderKeyword, setOrderKeyword] = useState("");
   const [orderFilter, setOrderFilter] = useState<"all" | "win" | "lose">("all");
   const [numberSortMode, setNumberSortMode] = useState<"natural" | "amountDesc">("natural");
-  const [zodiacSortMode, setZodiacSortMode] = useState<"natural" | "amountDesc">("natural");
   const [showAllNumberBars, setShowAllNumberBars] = useState(true);
-  const [showAllZodiacBars, setShowAllZodiacBars] = useState(true);
 
   const visibleOrders = useMemo(() => {
     return computed.settledOrders.filter((order) => {
@@ -39,7 +38,6 @@ export function ExpectDetailPage() {
   }, [computed.settledOrders, orderKeyword, orderFilter]);
 
   const visibleNumberBars = useMemo(() => sortNumberBars(computed.numberBarsBase, numberSortMode), [computed.numberBarsBase, numberSortMode]);
-  const visibleZodiacBars = useMemo(() => sortZodiacBars(computed.zodiacBarsBase, zodiacSortMode), [computed.zodiacBarsBase, zodiacSortMode]);
 
   if (loading) {
     return <LoadingScreen />;
@@ -58,7 +56,7 @@ export function ExpectDetailPage() {
       <ExpectHeader expect={data.snapshot.expect} receivedAt={data.snapshot.receivedAt} drawResult={computed.drawResult} />
       <SummaryCards summary={computed.summary} />
       <BarChartPanel
-        title="号码柱状图"
+        title="特码柱状图"
         items={visibleNumberBars.map((item) => ({
           key: item.number,
           label: item.number,
@@ -71,19 +69,7 @@ export function ExpectDetailPage() {
         showAll={showAllNumberBars}
         onShowAllChange={setShowAllNumberBars}
       />
-      <BarChartPanel
-        title="生肖柱状图"
-        items={visibleZodiacBars.map((item) => ({
-          key: item.zodiac,
-          label: item.zodiac,
-          amount: item.amount,
-          highlighted: item.isDrawn
-        }))}
-        sortMode={zodiacSortMode}
-        onSortModeChange={setZodiacSortMode}
-        showAll={showAllZodiacBars}
-        onShowAllChange={setShowAllZodiacBars}
-      />
+      <OrderExceptionList exceptions={computed.orderExceptions} />
       <OrderTable
         orders={visibleOrders}
         keyword={orderKeyword}

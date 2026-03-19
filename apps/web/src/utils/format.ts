@@ -23,11 +23,23 @@ export function formatCurrency(value: number | null | undefined): string {
   return `¥${value.toFixed(2)}`;
 }
 
-export function formatProfit(value: number | null): string {
-  if (value === null) {
-    return "待开奖";
+export function formatSignedCurrency(value: number | null | undefined): string {
+  if (value === null || value === undefined) {
+    return "---";
   }
 
-  const prefix = value > 0 ? "+" : "";
-  return `${prefix}${formatCurrency(value)}`;
+  if (value === 0) {
+    return "¥0.00";
+  }
+
+  const sign = value > 0 ? "+" : "-";
+  return `${sign}¥${Math.abs(value).toFixed(2)}`;
+}
+
+export function formatProfit(value: number | null): string {
+  if (value === null) {
+    return "---";
+  }
+
+  return formatSignedCurrency(value);
 }
