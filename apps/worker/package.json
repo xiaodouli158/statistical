@@ -1,0 +1,23 @@
+{
+  "name": "@statisticalsystem/worker",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@statisticalsystem/parser": "0.1.0",
+    "@statisticalsystem/shared": "0.1.0",
+    "hono": "^4.8.5",
+    "postal-mime": "^2.4.4"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20260313.0",
+    "typescript": "^5.9.2",
+    "wrangler": "^4.10.0"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json --noEmit",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy"
+  }
+}

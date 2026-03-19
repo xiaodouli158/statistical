@@ -1,0 +1,22 @@
+{
+  "$schema": "../../node_modules/wrangler/config-schema.json",
+  "name": "statisticalsystem-worker",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-03-19",
+  "workers_dev": true,
+  "triggers": {
+    "crons": ["31 13 * * *"]
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "statisticalsystem_db",
+      "database_id": "3fb003f9-def8-41c9-bb52-b6ba4ad7e4c7"
+    }
+  ],
+  "vars": {
+    "APP_ORIGIN": "https://statisticalsystem.pages.dev",
+    "DRAW_API_URL": "https://macaumarksix.com/api/macaujc2.com",
+    "SESSION_TTL_DAYS": "7"
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "name": "statisticalsystem",
+  "version": "0.1.0",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "npm run build -w @statisticalsystem/shared && npm run build -w @statisticalsystem/parser && npm run build -w @statisticalsystem/worker && npm run build -w @statisticalsystem/web",
+    "typecheck": "npm run typecheck -w @statisticalsystem/shared && npm run typecheck -w @statisticalsystem/parser && npm run typecheck -w @statisticalsystem/worker && npm run typecheck -w @statisticalsystem/web",
+    "dev:web": "npm run dev -w @statisticalsystem/web",
+    "dev:worker": "npm run dev -w @statisticalsystem/worker",
+    "cf:pages:create": "sh -c 'test -n \"$CLOUDFLARE_API_TOKEN\" || { echo \"CLOUDFLARE_API_TOKEN is required\"; exit 1; }; npx wrangler pages project create statisticalsystem'",
+    "cf:pages:deploy": "sh -c 'test -n \"$CLOUDFLARE_API_TOKEN\" || { echo \"CLOUDFLARE_API_TOKEN is required\"; exit 1; }; test -n \"$VITE_API_BASE_URL\" || { echo \"VITE_API_BASE_URL is required\"; exit 1; }; npm run build -w @statisticalsystem/web && npx wrangler pages deploy apps/web/dist --project-name statisticalsystem'",
+    "cf:worker:deploy": "sh -c 'test -n \"$CLOUDFLARE_API_TOKEN\" || { echo \"CLOUDFLARE_API_TOKEN is required\"; exit 1; }; npx wrangler deploy --config apps/worker/wrangler.jsonc'",
+    "cf:worker:deploy:dry-run": "npx wrangler deploy --config apps/worker/wrangler.jsonc --dry-run"
+  }
+}
