@@ -4,6 +4,7 @@ import { RequireSession } from "../components/RequireSession";
 import { AdminLayout } from "../layouts/AdminLayout";
 import { UserLayout } from "../layouts/UserLayout";
 import { AdminAccountsPage } from "../pages/admin/Accounts";
+import { AdminDataDetailPage } from "../pages/admin/DataDetail";
 import { AdminDataViewerPage } from "../pages/admin/DataViewer";
 import { AdminLoginPage } from "../pages/admin/Login";
 import { AdminUsersPage } from "../pages/admin/Users";
@@ -73,6 +74,10 @@ export const router = createBrowserRouter([
               {
                 path: "data",
                 element: <AdminDataViewerPage />
+              },
+              {
+                path: "data/:account/:expect",
+                element: <AdminDataDetailPage />
               }
             ]
           }

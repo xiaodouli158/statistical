@@ -6,8 +6,10 @@ import { generateSessionToken, sha256 } from "../auth/session";
 import {
   createAccount,
   createUser,
+  getExpectDetail,
   getAdminData,
   getUserByUsername,
+  listExpectsForAccount,
   listAccounts,
   listUsers,
   updateAccount,
@@ -134,6 +136,34 @@ adminRoutes.put("/accounts/:account", requireAuth("admin"), async (c) => {
   }
 
   return c.json(account);
+});
+
+adminRoutes.get("/data/expects", requireAuth("admin"), async (c) => {
+  const account = c.req.query("account");
+  const lotteryType = normalizeLotteryType(c.req.query("lottery"));
+
+  if (!account) {
+    return c.json({ error: "缺少 account" }, 400);
+  }
+
+  return c.json(await listExpectsForAccount(c.env, account, lotteryType));
+});
+
+adminRoutes.get("/data/expects/:expect", requireAuth("admin"), async (c) => {
+  const account = c.req.query("account");
+  const lotteryType = normalizeLotteryType(c.req.query("lottery"));
+
+  if (!account) {
+    return c.json({ error: "缺少 account" }, 400);
+  }
+
+  const detail = await getExpectDetail(c.env, account, lotteryType, c.req.param("expect"));
+
+  if (!detail) {
+    return c.json({ error: "数据不存在" }, 404);
+  }
+
+  return c.json(detail);
 });
 
 adminRoutes.get("/data", requireAuth("admin"), async (c) => {

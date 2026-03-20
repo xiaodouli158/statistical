@@ -1,11 +1,9 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
 import { LOTTERY_LABELS, type UserExpectListItem } from "@statisticalsystem/shared";
 import { LoadingScreen } from "../../components/LoadingScreen";
-import { Panel } from "../../components/Panel";
+import { ExpectListPanel } from "../../features/expect-list/components/ExpectListPanel";
 import { useLotteryType } from "../../hooks/useLotteryType";
 import { getUserExpects } from "../../services/user";
-import { formatDateTime } from "../../utils/format";
 
 export function ExpectsPage() {
   const { lotteryType, lotterySearch } = useLotteryType();
@@ -52,18 +50,13 @@ export function ExpectsPage() {
         </div>
       </header>
 
-      <Panel title={`${LOTTERY_LABELS[lotteryType]}期数列表`}>
-        {state.error ? <p className="error-text">{state.error}</p> : null}
-        <div className="list-grid">
-          {state.data.map((item) => (
-            <Link className="expect-card" key={item.expect} to={`/expects/${item.expect}${lotterySearch}`}>
-              <strong>{item.expect}期</strong>
-              <span>快照时间：{formatDateTime(item.receivedAt)}</span>
-              <span>{item.hasDrawResult ? "已开奖" : "待开奖"}</span>
-            </Link>
-          ))}
-        </div>
-      </Panel>
+      <ExpectListPanel
+        title={`${LOTTERY_LABELS[lotteryType]}期数列表`}
+        items={state.data}
+        error={state.error}
+        emptyText="暂无结算记录"
+        buildHref={(item) => `/expects/${item.expect}${lotterySearch}`}
+      />
     </div>
   );
 }

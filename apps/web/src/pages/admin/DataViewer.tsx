@@ -1,64 +1,156 @@
-import { LOTTERY_LABELS, type LotteryType } from "@statisticalsystem/shared";
-import { useState } from "react";
+import { LOTTERY_LABELS, type AccountRecord, type LotteryType, type UserExpectListItem } from "@statisticalsystem/shared";
+import { useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
+import { LoadingScreen } from "../../components/LoadingScreen";
 import { Panel } from "../../components/Panel";
-import { getAdminData, syncAdminDraw } from "../../services/admin";
+import { ExpectListPanel } from "../../features/expect-list/components/ExpectListPanel";
+import { useLotteryType } from "../../hooks/useLotteryType";
+import { getAdminAccounts, getAdminExpects, syncAdminDraw } from "../../services/admin";
 
 export function AdminDataViewerPage() {
-  const [account, setAccount] = useState("");
-  const [expect, setExpect] = useState("");
-  const [lotteryType, setLotteryType] = useState<LotteryType>("macau");
-  const [result, setResult] = useState<string>("");
-  const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const { lotteryType, lotterySearch, setLotteryType } = useLotteryType();
+  const selectedAccount = searchParams.get("account") ?? "";
+  const [accountsState, setAccountsState] = useState<{
+    data: AccountRecord[];
+    loading: boolean;
+    error: string | null;
+  }>({
+    data: [],
+    loading: true,
+    error: null
+  });
+  const [expectsState, setExpectsState] = useState<{
+    data: UserExpectListItem[];
+    loading: boolean;
+    error: string | null;
+  }>({
+    data: [],
+    loading: false,
+    error: null
+  });
+  const [syncing, setSyncing] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [reloadToken, setReloadToken] = useState(0);
 
-  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setLoading(true);
-    setError(null);
+  useEffect(() => {
+    let mounted = true;
 
-    try {
-      const data = await getAdminData(account, expect, lotteryType);
-      setResult(JSON.stringify(data, null, 2));
-    } catch (submitError) {
-      setError((submitError as Error).message);
-    } finally {
-      setLoading(false);
+    getAdminAccounts()
+      .then((data) => {
+        if (mounted) {
+          setAccountsState({ data, loading: false, error: null });
+        }
+      })
+      .catch((error: Error) => {
+        if (mounted) {
+          setAccountsState({ data: [], loading: false, error: error.message });
+        }
+      });
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!selectedAccount) {
+      setExpectsState({ data: [], loading: false, error: null });
+      return;
     }
+
+    let mounted = true;
+    setExpectsState({ data: [], loading: true, error: null });
+
+    getAdminExpects(selectedAccount, lotteryType)
+      .then((data) => {
+        if (mounted) {
+          setExpectsState({ data, loading: false, error: null });
+        }
+      })
+      .catch((error: Error) => {
+        if (mounted) {
+          setExpectsState({ data: [], loading: false, error: error.message });
+        }
+      });
+
+    return () => {
+      mounted = false;
+    };
+  }, [selectedAccount, lotteryType, reloadToken]);
+
+  function handleAccountChange(nextAccount: string) {
+    const nextParams = new URLSearchParams(searchParams);
+
+    if (nextAccount) {
+      nextParams.set("account", nextAccount);
+    } else {
+      nextParams.delete("account");
+    }
+
+    setSearchParams(nextParams, { replace: true });
   }
 
   async function handleSyncDraw() {
-    setLoading(true);
-    setError(null);
+    setSyncing(true);
+    setActionError(null);
 
     try {
-      await syncAdminDraw(lotteryType, expect || undefined);
+      await syncAdminDraw(lotteryType);
+      setReloadToken((current) => current + 1);
     } catch (syncError) {
-      setError((syncError as Error).message);
+      setActionError((syncError as Error).message);
     } finally {
-      setLoading(false);
+      setSyncing(false);
     }
+  }
+
+  if (accountsState.loading) {
+    return <LoadingScreen />;
   }
 
   return (
     <div className="page-stack">
-      <Panel title="按 account + expect 查看数据" action={<button className="ghost-button" type="button" onClick={handleSyncDraw}>手动同步开奖</button>}>
-        <form className="form-grid" onSubmit={handleSubmit}>
-          <input className="text-input" placeholder="account" value={account} onChange={(event) => setAccount(event.target.value)} />
-          <input className="text-input" placeholder="expect" value={expect} onChange={(event) => setExpect(event.target.value)} />
+      <header className="page-header">
+        <div>
+          <span className="brand__eyebrow">{LOTTERY_LABELS[lotteryType]}</span>
+          <h1>账号结算记录</h1>
+        </div>
+      </header>
+
+      <Panel title="选择账号与彩种" action={<button className="ghost-button" disabled={syncing} type="button" onClick={handleSyncDraw}>{syncing ? "同步中..." : "同步当前开奖"}</button>}>
+        <div className="form-grid">
+          <select className="text-input" value={selectedAccount} onChange={(event) => handleAccountChange(event.target.value)}>
+            <option value="">请选择账号</option>
+            {accountsState.data.map((account) => (
+              <option key={account.account} value={account.account}>
+                {account.account}
+              </option>
+            ))}
+          </select>
           <select className="text-input" value={lotteryType} onChange={(event) => setLotteryType(event.target.value as LotteryType)}>
             <option value="macau">{LOTTERY_LABELS.macau}</option>
             <option value="hongkong">{LOTTERY_LABELS.hongkong}</option>
           </select>
-          <button className="primary-button" disabled={loading} type="submit">
-            {loading ? "查询中..." : "查询"}
-          </button>
-        </form>
-        {error ? <p className="error-text">{error}</p> : null}
+        </div>
+        {accountsState.error ? <p className="error-text">{accountsState.error}</p> : null}
+        {actionError ? <p className="error-text">{actionError}</p> : null}
+        <p className="muted">{selectedAccount ? `已选择账号 ${selectedAccount}，下方直接展示该账号的${LOTTERY_LABELS[lotteryType]}结算记录。` : "先选择账号，再查看对应彩种的结算记录。"}</p>
       </Panel>
 
-      <Panel title="数据结果">
-        <pre className="code-block">{result || "暂无数据"}</pre>
-      </Panel>
+      {expectsState.loading ? (
+        <Panel title={selectedAccount ? `${selectedAccount} · ${LOTTERY_LABELS[lotteryType]}结算记录` : "结算记录"}>
+          <p className="muted">加载中...</p>
+        </Panel>
+      ) : (
+        <ExpectListPanel
+          title={selectedAccount ? `${selectedAccount} · ${LOTTERY_LABELS[lotteryType]}结算记录` : "结算记录"}
+          items={expectsState.data}
+          error={expectsState.error}
+          emptyText={selectedAccount ? "当前账号暂无该彩种结算记录" : "请选择账号"}
+          buildHref={(item) => `/admin/data/${encodeURIComponent(selectedAccount)}/${encodeURIComponent(item.expect)}${lotterySearch}`}
+        />
+      )}
     </div>
   );
 }

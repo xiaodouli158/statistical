@@ -1,12 +1,14 @@
 import type {
   AccountRecord,
   AdminDataResponse,
+  ExpectDetailResponse,
   LoginRequest,
   LoginResponse,
   LotteryType,
   SessionUser,
   UpsertAccountRequest,
   UpsertUserRequest,
+  UserExpectListItem,
   UserRecord
 } from "@statisticalsystem/shared";
 import { apiFetch } from "./api";
@@ -69,6 +71,18 @@ export async function updateAdminAccount(account: string, payload: UpsertAccount
 export async function getAdminData(account: string, expect: string, lotteryType: LotteryType): Promise<AdminDataResponse> {
   return apiFetch<AdminDataResponse>(
     `/api/admin/data?account=${encodeURIComponent(account)}&expect=${encodeURIComponent(expect)}&lottery=${encodeURIComponent(lotteryType)}`
+  );
+}
+
+export async function getAdminExpects(account: string, lotteryType: LotteryType): Promise<UserExpectListItem[]> {
+  return apiFetch<UserExpectListItem[]>(
+    `/api/admin/data/expects?account=${encodeURIComponent(account)}&lottery=${encodeURIComponent(lotteryType)}`
+  );
+}
+
+export async function getAdminExpectDetail(account: string, expect: string, lotteryType: LotteryType): Promise<ExpectDetailResponse> {
+  return apiFetch<ExpectDetailResponse>(
+    `/api/admin/data/expects/${encodeURIComponent(expect)}?account=${encodeURIComponent(account)}&lottery=${encodeURIComponent(lotteryType)}`
   );
 }
 

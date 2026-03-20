@@ -118,6 +118,14 @@ select {
   min-width: 0;
 }
 
+.page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
 .page-header h1,
 .panel h1,
 .panel h2 {
@@ -195,31 +203,48 @@ select {
   color: #7a867f;
 }
 
-.expect-header {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 24px;
-  margin-bottom: 18px;
+.expect-header-panel {
+  display: grid;
+  grid-template-columns: minmax(260px, 320px) minmax(0, 1fr);
+  gap: 24px 32px;
+  align-items: center;
 }
 
-.expect-header > div {
+.expect-header-meta {
+  display: grid;
+  gap: 14px;
+}
+
+.expect-header-meta__item {
   display: grid;
   gap: 4px;
+}
+
+.draw-strip-wrap {
+  min-width: 0;
+  display: flex;
+  justify-content: flex-end;
 }
 
 .draw-strip {
   display: flex;
   flex-wrap: wrap;
+  justify-content: flex-end;
   gap: 12px;
 }
 
-.draw-ball {
+.draw-ball-stack {
   position: relative;
+  padding-top: 24px;
+}
+
+.draw-ball {
   display: grid;
   place-items: center;
   gap: 4px;
   width: 76px;
   min-height: 76px;
+  padding: 12px 8px 10px;
   border-radius: 20px;
   color: #fff;
   box-shadow: inset 0 1px 2px rgba(255, 255, 255, 0.24);
@@ -237,19 +262,35 @@ select {
   background: linear-gradient(180deg, #8fe0af, #198457);
 }
 
+.draw-ball--special {
+  box-shadow:
+    inset 0 1px 2px rgba(255, 255, 255, 0.24),
+    0 0 0 3px rgba(255, 250, 237, 0.9),
+    0 12px 24px rgba(209, 81, 81, 0.18);
+}
+
 .draw-ball__number {
   font-size: 24px;
   font-weight: 700;
+  line-height: 1;
 }
 
 .draw-ball__tag {
   position: absolute;
-  top: 8px;
-  right: 8px;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1;
   border-radius: 999px;
-  padding: 2px 8px;
-  background: rgba(255, 255, 255, 0.22);
-  font-size: 11px;
+  padding: 4px 10px;
+  background: linear-gradient(180deg, #fff4df 0%, #ffe4bf 100%);
+  color: #b44b21;
+  border: 1px solid rgba(180, 75, 33, 0.16);
+  box-shadow: 0 8px 18px rgba(145, 88, 40, 0.14);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
+  white-space: nowrap;
 }
 
 .draw-ball__meta {
@@ -577,5 +618,26 @@ select {
 
   .shell__sidebar {
     gap: 14px;
+  }
+
+  .page-header {
+    align-items: flex-start;
+  }
+
+  .expect-header-panel {
+    grid-template-columns: 1fr;
+    align-items: flex-start;
+  }
+
+  .draw-strip-wrap,
+  .draw-strip {
+    justify-content: flex-start;
+  }
+}
+
+@media (max-width: 640px) {
+  .draw-ball {
+    width: 72px;
+    min-height: 72px;
   }
 }
