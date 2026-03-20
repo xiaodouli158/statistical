@@ -1,4 +1,4 @@
-import type { ZODIAC_SEQUENCE, WAVE_COLORS } from "./constants";
+import type { LOTTERY_TYPES, ZODIAC_SEQUENCE, WAVE_COLORS } from "./constants";
 
 export type Role = "admin" | "user";
 
@@ -12,9 +12,12 @@ export type WaveColor = (typeof WAVE_COLORS)[number];
 
 export type ZodiacName = (typeof ZODIAC_SEQUENCE)[number];
 
+export type LotteryType = (typeof LOTTERY_TYPES)[number];
+
 export type SnapshotRecord = {
   id: string;
   account: string;
+  lotteryType: LotteryType;
   expect: string;
   receivedAt: string;
   mailFrom: string | null;
@@ -24,6 +27,7 @@ export type SnapshotRecord = {
 };
 
 export type DrawResultRecord = {
+  lotteryType: LotteryType;
   expect: string;
   openTime: string;
   type: string;
@@ -47,7 +51,8 @@ export type UserRecord = {
 
 export type AccountRecord = {
   account: string;
-  inbox: string;
+  macauInbox: string | null;
+  hongkongInbox: string | null;
   enabled: boolean;
   createdAt: string;
   updatedAt: string;
@@ -70,6 +75,7 @@ export type LoginResponse = {
 };
 
 export type UserExpectListItem = {
+  lotteryType: LotteryType;
   expect: string;
   receivedAt: string;
   orderCount: number;
@@ -79,11 +85,13 @@ export type UserExpectListItem = {
 };
 
 export type ExpectDetailResponse = {
+  lotteryType: LotteryType;
   snapshot: SnapshotRecord;
   drawResult: DrawResultRecord | null;
 };
 
 export type AdminDataResponse = {
+  lotteryType: LotteryType;
   snapshot: SnapshotRecord | null;
   drawResult: DrawResultRecord | null;
 };
@@ -97,6 +105,7 @@ export type UpsertUserRequest = {
 };
 
 export type UpsertAccountRequest = {
-  inbox: string;
+  macauInbox: string | null;
+  hongkongInbox: string | null;
   enabled: boolean;
 };

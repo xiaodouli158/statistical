@@ -1,6 +1,6 @@
-INSERT INTO accounts (account, inbox, enabled, created_at, updated_at)
+INSERT INTO accounts (account, macau_inbox, hongkong_inbox, enabled, created_at, updated_at)
 VALUES
-  ('c001', 'c001@example.com', 1, '2026-03-19T00:00:00.000Z', '2026-03-19T00:00:00.000Z');
+  ('c001', 'c001-macau@example.com', 'c001-hk@example.com', 1, '2026-03-19T00:00:00.000Z', '2026-03-19T00:00:00.000Z');
 
 INSERT INTO users (id, username, password_hash, role, account, status, created_at, updated_at)
 VALUES
@@ -26,11 +26,12 @@ VALUES
   );
 
 INSERT INTO expect_snapshots (
-  id, account, expect, received_at, mail_from, mail_subject, raw_body, message_chunks_json, created_at, updated_at
+  id, account, lottery_type, expect, received_at, mail_from, mail_subject, raw_body, message_chunks_json, created_at, updated_at
 )
 VALUES (
   'snapshot-001',
   'c001',
+  'macau',
   '2026077',
   '2026-03-18T14:05:00.000Z',
   'sender@example.com',
@@ -42,9 +43,10 @@ VALUES (
 );
 
 INSERT INTO draw_results (
-  expect, open_time, type, open_code, wave, zodiac, verify, source_payload, fetched_at, created_at, updated_at
+  lottery_type, expect, open_time, type, open_code, wave, zodiac, verify, source_payload, fetched_at, created_at, updated_at
 )
 VALUES (
+  'macau',
   '2026077',
   '2026-03-18 21:32:32',
   '8',

@@ -1,9 +1,10 @@
-import type { AccountRecord, DrawResultRecord, SessionUser, SnapshotRecord, UserRecord } from "@statisticalsystem/shared";
+import type { AccountRecord, DrawResultRecord, LotteryType, SessionUser, SnapshotRecord, UserRecord } from "@statisticalsystem/shared";
 
 export type Env = {
   DB: D1Database;
   APP_ORIGIN: string;
-  DRAW_API_URL?: string;
+  DRAW_API_PRIMARY_URL?: string;
+  DRAW_API_BACKUP_URL?: string;
   SESSION_TTL_DAYS?: string;
 };
 
@@ -24,15 +25,21 @@ export type UserRow = {
 
 export type AccountRow = {
   account: string;
-  inbox: string;
+  macau_inbox: string | null;
+  hongkong_inbox: string | null;
   enabled: number;
   created_at: string;
   updated_at: string;
 };
 
+export type AccountInboxMatchRow = AccountRow & {
+  lottery_type: LotteryType;
+};
+
 export type SnapshotRow = {
   id: string;
   account: string;
+  lottery_type: LotteryType;
   expect: string;
   received_at: string;
   mail_from: string | null;
@@ -42,6 +49,7 @@ export type SnapshotRow = {
 };
 
 export type DrawRow = {
+  lottery_type: LotteryType;
   expect: string;
   open_time: string;
   type: string;
@@ -75,7 +83,8 @@ export function toUserRecord(row: UserRow): UserRecord {
 export function toAccountRecord(row: AccountRow): AccountRecord {
   return {
     account: row.account,
-    inbox: row.inbox,
+    macauInbox: row.macau_inbox,
+    hongkongInbox: row.hongkong_inbox,
     enabled: Boolean(row.enabled),
     createdAt: row.created_at,
     updatedAt: row.updated_at
@@ -86,6 +95,7 @@ export function toSnapshotRecord(row: SnapshotRow): SnapshotRecord {
   return {
     id: row.id,
     account: row.account,
+    lotteryType: row.lottery_type,
     expect: row.expect,
     receivedAt: row.received_at,
     mailFrom: row.mail_from,
@@ -97,6 +107,7 @@ export function toSnapshotRecord(row: SnapshotRow): SnapshotRecord {
 
 export function toDrawRecord(row: DrawRow): DrawResultRecord {
   return {
+    lotteryType: row.lottery_type,
     expect: row.expect,
     openTime: row.open_time,
     type: row.type,

@@ -5,7 +5,7 @@
   "compatibility_date": "2026-03-19",
   "workers_dev": true,
   "triggers": {
-    "crons": ["31 13 * * *"]
+    "crons": ["30 13 * * *"]
   },
   "d1_databases": [
     {
@@ -16,7 +16,8 @@
   ],
   "vars": {
     "APP_ORIGIN": "https://statisticalsystem.pages.dev",
-    "DRAW_API_URL": "https://macaumarksix.com/api/macaujc2.com",
+    "DRAW_API_PRIMARY_URL": "https://api3.marksix6.net/lottery_api.php",
+    "DRAW_API_BACKUP_URL": "https://marksix6.net/api/lottery_api.php",
     "SESSION_TTL_DAYS": "7"
   }
 }

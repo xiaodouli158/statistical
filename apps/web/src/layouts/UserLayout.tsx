@@ -1,8 +1,12 @@
+import { LOTTERY_LABELS, type LotteryType } from "@statisticalsystem/shared";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
+import { SegmentedControl } from "../components/SegmentedControl";
+import { useLotteryType } from "../hooks/useLotteryType";
 import { logoutUser } from "../services/user";
 
 export function UserLayout() {
   const navigate = useNavigate();
+  const { lotteryType, lotterySearch, setLotteryType } = useLotteryType();
 
   async function handleLogout() {
     await logoutUser();
@@ -15,12 +19,22 @@ export function UserLayout() {
         <div className="brand">
           <span className="brand__eyebrow">用户端</span>
           <strong>StatisticalSystem</strong>
+          <div className="brand__switch">
+            <SegmentedControl<LotteryType>
+              value={lotteryType}
+              options={[
+                { label: LOTTERY_LABELS.macau, value: "macau" },
+                { label: LOTTERY_LABELS.hongkong, value: "hongkong" }
+              ]}
+              onChange={setLotteryType}
+            />
+          </div>
         </div>
         <nav className="nav-list">
-          <NavLink className="nav-link" to="/expects">
+          <NavLink className="nav-link" to={{ pathname: "/expects", search: lotterySearch }}>
             历史期数
           </NavLink>
-          <NavLink className="nav-link" to="/help">
+          <NavLink className="nav-link" to={{ pathname: "/help", search: lotterySearch }}>
             投注帮助
           </NavLink>
         </nav>

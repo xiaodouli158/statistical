@@ -1,16 +1,18 @@
+import { LOTTERY_LABELS, type LotteryType } from "@statisticalsystem/shared";
 import type { NormalizedDrawResult } from "@statisticalsystem/parser";
 import { Panel } from "../../../components/Panel";
 import { formatDateTime } from "../../../utils/format";
 
 type ExpectHeaderProps = {
+  lotteryType: LotteryType;
   expect: string;
   receivedAt: string;
   drawResult: NormalizedDrawResult | null;
 };
 
-export function ExpectHeader({ expect, receivedAt, drawResult }: ExpectHeaderProps) {
+export function ExpectHeader({ lotteryType, expect, receivedAt, drawResult }: ExpectHeaderProps) {
   return (
-    <Panel title={`${expect}期`}>
+    <Panel title={`${LOTTERY_LABELS[lotteryType]} ${expect}期`}>
       <div className="expect-header">
         <div>
           <span className="eyebrow">邮件快照时间</span>

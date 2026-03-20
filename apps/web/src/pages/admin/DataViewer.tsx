@@ -1,3 +1,4 @@
+import { LOTTERY_LABELS, type LotteryType } from "@statisticalsystem/shared";
 import { useState } from "react";
 import { Panel } from "../../components/Panel";
 import { getAdminData, syncAdminDraw } from "../../services/admin";
@@ -5,6 +6,7 @@ import { getAdminData, syncAdminDraw } from "../../services/admin";
 export function AdminDataViewerPage() {
   const [account, setAccount] = useState("");
   const [expect, setExpect] = useState("");
+  const [lotteryType, setLotteryType] = useState<LotteryType>("macau");
   const [result, setResult] = useState<string>("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -15,7 +17,7 @@ export function AdminDataViewerPage() {
     setError(null);
 
     try {
-      const data = await getAdminData(account, expect);
+      const data = await getAdminData(account, expect, lotteryType);
       setResult(JSON.stringify(data, null, 2));
     } catch (submitError) {
       setError((submitError as Error).message);
@@ -29,7 +31,7 @@ export function AdminDataViewerPage() {
     setError(null);
 
     try {
-      await syncAdminDraw(expect || undefined);
+      await syncAdminDraw(lotteryType, expect || undefined);
     } catch (syncError) {
       setError((syncError as Error).message);
     } finally {
@@ -43,6 +45,10 @@ export function AdminDataViewerPage() {
         <form className="form-grid" onSubmit={handleSubmit}>
           <input className="text-input" placeholder="account" value={account} onChange={(event) => setAccount(event.target.value)} />
           <input className="text-input" placeholder="expect" value={expect} onChange={(event) => setExpect(event.target.value)} />
+          <select className="text-input" value={lotteryType} onChange={(event) => setLotteryType(event.target.value as LotteryType)}>
+            <option value="macau">{LOTTERY_LABELS.macau}</option>
+            <option value="hongkong">{LOTTERY_LABELS.hongkong}</option>
+          </select>
           <button className="primary-button" disabled={loading} type="submit">
             {loading ? "查询中..." : "查询"}
           </button>

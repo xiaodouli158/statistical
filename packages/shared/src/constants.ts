@@ -2,7 +2,13 @@ export const ZODIAC_SEQUENCE = ["鼠", "牛", "虎", "兔", "龙", "蛇", "马",
 
 export const WAVE_COLORS = ["red", "blue", "green"] as const;
 
-export const DRAW_API_URL = "https://macaumarksix.com/api/macaujc2.com";
+export const LOTTERY_TYPES = ["macau", "hongkong"] as const;
+
+export const DRAW_API_PRIMARY_URL = "https://api3.marksix6.net/lottery_api.php";
+
+export const DRAW_API_BACKUP_URL = "https://marksix6.net/api/lottery_api.php";
+
+export const DRAW_API_URL = DRAW_API_PRIMARY_URL;
 
 export const BUSINESS_DAY_START_HOUR = 6;
 

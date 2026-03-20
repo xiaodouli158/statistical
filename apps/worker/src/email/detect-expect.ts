@@ -1,8 +1,9 @@
+import type { LotteryType } from "@statisticalsystem/shared";
 import { computeExpectForMail } from "../utils/time";
 
 const EXPECT_PATTERN = /\b(20\d{5})\b/;
 
-export function detectExpect(subject: string | null, body: string, receivedAt: Date): string {
+export function detectExpect(subject: string | null, body: string, receivedAt: Date, lotteryType: LotteryType): string {
   const subjectMatch = subject?.match(EXPECT_PATTERN)?.[1];
 
   if (subjectMatch) {
@@ -15,5 +16,5 @@ export function detectExpect(subject: string | null, body: string, receivedAt: D
     return bodyMatch;
   }
 
-  return computeExpectForMail(receivedAt);
+  return computeExpectForMail(receivedAt, lotteryType);
 }

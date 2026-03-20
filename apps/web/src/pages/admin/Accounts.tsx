@@ -6,13 +6,15 @@ import { createAdminAccount, getAdminAccounts, updateAdminAccount } from "../../
 
 type AccountFormState = {
   account: string;
-  inbox: string;
+  macauInbox: string;
+  hongkongInbox: string;
   enabled: boolean;
 };
 
 const EMPTY_FORM: AccountFormState = {
   account: "",
-  inbox: "",
+  macauInbox: "",
+  hongkongInbox: "",
   enabled: true
 };
 
@@ -34,7 +36,8 @@ export function AdminAccountsPage() {
             account.account,
             {
               account: account.account,
-              inbox: account.inbox,
+              macauInbox: account.macauInbox ?? "",
+              hongkongInbox: account.hongkongInbox ?? "",
               enabled: account.enabled
             }
           ])
@@ -55,7 +58,8 @@ export function AdminAccountsPage() {
   async function handleCreate(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     await createAdminAccount(form.account, {
-      inbox: form.inbox,
+      macauInbox: form.macauInbox || null,
+      hongkongInbox: form.hongkongInbox || null,
       enabled: form.enabled
     });
     setForm(EMPTY_FORM);
@@ -70,7 +74,8 @@ export function AdminAccountsPage() {
     }
 
     await updateAdminAccount(accountId, {
-      inbox: draft.inbox,
+      macauInbox: draft.macauInbox || null,
+      hongkongInbox: draft.hongkongInbox || null,
       enabled: draft.enabled
     });
     await loadAccounts();
@@ -85,7 +90,8 @@ export function AdminAccountsPage() {
       <Panel title="新增 account">
         <form className="form-grid" onSubmit={handleCreate}>
           <input className="text-input" placeholder="account，例如 c001" value={form.account} onChange={(event) => setForm({ ...form, account: event.target.value })} />
-          <input className="text-input" placeholder="收件邮箱" value={form.inbox} onChange={(event) => setForm({ ...form, inbox: event.target.value })} />
+          <input className="text-input" placeholder="澳门收件邮箱（aaa@...）" value={form.macauInbox} onChange={(event) => setForm({ ...form, macauInbox: event.target.value })} />
+          <input className="text-input" placeholder="香港收件邮箱（xxx@...）" value={form.hongkongInbox} onChange={(event) => setForm({ ...form, hongkongInbox: event.target.value })} />
           <label className="checkbox-line">
             <input checked={form.enabled} type="checkbox" onChange={(event) => setForm({ ...form, enabled: event.target.checked })} />
             启用
@@ -103,7 +109,8 @@ export function AdminAccountsPage() {
             <thead>
               <tr>
                 <th>account</th>
-                <th>inbox</th>
+                <th>澳门 inbox</th>
+                <th>香港 inbox</th>
                 <th>状态</th>
                 <th>操作</th>
               </tr>
@@ -115,11 +122,23 @@ export function AdminAccountsPage() {
                   <td>
                     <input
                       className="text-input text-input--compact"
-                      value={drafts[account.account]?.inbox ?? account.inbox}
+                      value={drafts[account.account]?.macauInbox ?? account.macauInbox ?? ""}
                       onChange={(event) =>
                         setDrafts((current) => ({
                           ...current,
-                          [account.account]: { ...(current[account.account] ?? EMPTY_FORM), account: account.account, inbox: event.target.value }
+                          [account.account]: { ...(current[account.account] ?? EMPTY_FORM), account: account.account, macauInbox: event.target.value }
+                        }))
+                      }
+                    />
+                  </td>
+                  <td>
+                    <input
+                      className="text-input text-input--compact"
+                      value={drafts[account.account]?.hongkongInbox ?? account.hongkongInbox ?? ""}
+                      onChange={(event) =>
+                        setDrafts((current) => ({
+                          ...current,
+                          [account.account]: { ...(current[account.account] ?? EMPTY_FORM), account: account.account, hongkongInbox: event.target.value }
                         }))
                       }
                     />

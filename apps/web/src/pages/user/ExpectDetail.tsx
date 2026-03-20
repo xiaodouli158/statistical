@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
+import { LOTTERY_LABELS } from "@statisticalsystem/shared";
 import { sortNumberBars } from "../../utils/charts";
 import { LoadingScreen } from "../../components/LoadingScreen";
 import { BarChartPanel } from "../../features/expect-detail/components/BarChartPanel";
@@ -9,6 +10,7 @@ import { OrderTable } from "../../features/expect-detail/components/OrderTable";
 import { SummaryCards } from "../../features/expect-detail/components/SummaryCards";
 import { useExpectDetailComputed } from "../../features/expect-detail/hooks/useExpectDetailComputed";
 import { useExpectDetailQuery } from "../../features/expect-detail/hooks/useExpectDetailQuery";
+import { useLotteryType } from "../../hooks/useLotteryType";
 
 const WAVE_ACCENTS: Record<string, string> = {
   red: "linear-gradient(180deg, #ff9972 0%, #d9485a 100%)",
@@ -18,7 +20,8 @@ const WAVE_ACCENTS: Record<string, string> = {
 
 export function ExpectDetailPage() {
   const { expect = "" } = useParams();
-  const { data, loading, error } = useExpectDetailQuery(expect);
+  const { lotteryType } = useLotteryType();
+  const { data, loading, error } = useExpectDetailQuery(expect, lotteryType);
   const computed = useExpectDetailComputed(data);
   const [orderKeyword, setOrderKeyword] = useState("");
   const [orderFilter, setOrderFilter] = useState<"all" | "win" | "lose">("all");
@@ -46,14 +49,14 @@ export function ExpectDetailPage() {
   if (error || !data) {
     return (
       <div className="page-stack">
-        <p className="error-text">{error ?? "数据不存在"}</p>
+        <p className="error-text">{error ?? `${LOTTERY_LABELS[lotteryType]}数据不存在`}</p>
       </div>
     );
   }
 
   return (
     <div className="page-stack">
-      <ExpectHeader expect={data.snapshot.expect} receivedAt={data.snapshot.receivedAt} drawResult={computed.drawResult} />
+      <ExpectHeader lotteryType={lotteryType} expect={data.snapshot.expect} receivedAt={data.snapshot.receivedAt} drawResult={computed.drawResult} />
       <SummaryCards summary={computed.summary} />
       <BarChartPanel
         title="特码柱状图"

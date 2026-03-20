@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import type { LoginRequest, LoginResponse } from "@statisticalsystem/shared";
+import { normalizeLotteryType, type LoginRequest, type LoginResponse } from "@statisticalsystem/shared";
 import { clearSession, persistSession, requireAuth } from "../auth/guard";
 import { verifyPassword } from "../auth/password";
 import { generateSessionToken, sha256 } from "../auth/session";
@@ -59,23 +59,25 @@ userRoutes.get("/me", requireAuth("user"), async (c) => {
 
 userRoutes.get("/expects", requireAuth("user"), async (c) => {
   const sessionUser = c.get("sessionUser");
+  const lotteryType = normalizeLotteryType(c.req.query("lottery"));
 
   if (!sessionUser.account) {
     return c.json([], 200);
   }
 
-  const data = await listExpectsForAccount(c.env, sessionUser.account);
+  const data = await listExpectsForAccount(c.env, sessionUser.account, lotteryType);
   return c.json(data);
 });
 
 userRoutes.get("/expects/:expect", requireAuth("user"), async (c) => {
   const sessionUser = c.get("sessionUser");
+  const lotteryType = normalizeLotteryType(c.req.query("lottery"));
 
   if (!sessionUser.account) {
     return c.json({ error: "未绑定账号" }, 400);
   }
 
-  const detail = await getExpectDetail(c.env, sessionUser.account, c.req.param("expect"));
+  const detail = await getExpectDetail(c.env, sessionUser.account, lotteryType, c.req.param("expect"));
 
   if (!detail) {
     return c.json({ error: "数据不存在" }, 404);

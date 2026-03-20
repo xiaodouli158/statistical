@@ -15,15 +15,25 @@ WHERE account IS NOT NULL;
 
 CREATE TABLE IF NOT EXISTS accounts (
   account TEXT PRIMARY KEY,
-  inbox TEXT NOT NULL UNIQUE,
+  macau_inbox TEXT,
+  hongkong_inbox TEXT,
   enabled INTEGER NOT NULL DEFAULT 1,
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL
 );
 
+CREATE UNIQUE INDEX IF NOT EXISTS idx_accounts_macau_inbox_unique
+ON accounts(macau_inbox)
+WHERE macau_inbox IS NOT NULL;
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_accounts_hongkong_inbox_unique
+ON accounts(hongkong_inbox)
+WHERE hongkong_inbox IS NOT NULL;
+
 CREATE TABLE IF NOT EXISTS expect_snapshots (
   id TEXT PRIMARY KEY,
   account TEXT NOT NULL,
+  lottery_type TEXT NOT NULL CHECK (lottery_type IN ('macau', 'hongkong')),
   expect TEXT NOT NULL,
   received_at TEXT NOT NULL,
   mail_from TEXT,
@@ -32,15 +42,16 @@ CREATE TABLE IF NOT EXISTS expect_snapshots (
   message_chunks_json TEXT NOT NULL,
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL,
-  UNIQUE(account, expect),
+  UNIQUE(account, lottery_type, expect),
   FOREIGN KEY(account) REFERENCES accounts(account)
 );
 
 CREATE INDEX IF NOT EXISTS idx_expect_snapshots_account_expect
-ON expect_snapshots(account, expect DESC);
+ON expect_snapshots(account, lottery_type, expect DESC);
 
 CREATE TABLE IF NOT EXISTS draw_results (
-  expect TEXT PRIMARY KEY,
+  lottery_type TEXT NOT NULL CHECK (lottery_type IN ('macau', 'hongkong')),
+  expect TEXT NOT NULL,
   open_time TEXT NOT NULL,
   type TEXT NOT NULL,
   open_code TEXT NOT NULL,
@@ -50,11 +61,12 @@ CREATE TABLE IF NOT EXISTS draw_results (
   source_payload TEXT NOT NULL,
   fetched_at TEXT NOT NULL,
   created_at TEXT NOT NULL,
-  updated_at TEXT NOT NULL
+  updated_at TEXT NOT NULL,
+  PRIMARY KEY (lottery_type, expect)
 );
 
 CREATE INDEX IF NOT EXISTS idx_draw_results_open_time
-ON draw_results(open_time DESC);
+ON draw_results(lottery_type, open_time DESC);
 
 CREATE TABLE IF NOT EXISTS sessions (
   id TEXT PRIMARY KEY,

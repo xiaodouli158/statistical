@@ -3,6 +3,7 @@ import type {
   AdminDataResponse,
   DrawResultRecord,
   ExpectDetailResponse,
+  LotteryType,
   SessionUser,
   SnapshotRecord,
   UpsertAccountRequest,
@@ -11,7 +12,7 @@ import type {
   UserRecord
 } from "@statisticalsystem/shared";
 import { formatNowIso } from "../utils/time";
-import type { AccountRow, DrawRow, Env, SessionRow, SnapshotRow, UserRow } from "./types";
+import type { AccountInboxMatchRow, AccountRow, DrawRow, Env, SessionRow, SnapshotRow, UserRow } from "./types";
 import { toAccountRecord, toDrawRecord, toSnapshotRecord, toUserRecord } from "./types";
 
 async function first<T>(statement: D1PreparedStatement): Promise<T | null> {
@@ -21,6 +22,11 @@ async function first<T>(statement: D1PreparedStatement): Promise<T | null> {
 async function all<T>(statement: D1PreparedStatement): Promise<T[]> {
   const result = await statement.all<T>();
   return result.results ?? [];
+}
+
+function normalizeNullableText(value: string | null | undefined): string | null {
+  const normalized = value?.trim() ?? "";
+  return normalized ? normalized : null;
 }
 
 export async function getUserByUsername(env: Env, username: string): Promise<(UserRecord & { passwordHash: string }) | null> {
@@ -95,9 +101,29 @@ export async function listAccounts(env: Env): Promise<AccountRecord[]> {
   return rows.map(toAccountRecord);
 }
 
-export async function getAccountByInbox(env: Env, inbox: string): Promise<AccountRecord | null> {
-  const row = await first<AccountRow>(env.DB.prepare("SELECT * FROM accounts WHERE lower(inbox) = lower(?) LIMIT 1").bind(inbox));
-  return row ? toAccountRecord(row) : null;
+export async function getAccountByInbox(env: Env, inbox: string): Promise<(AccountRecord & { lotteryType: LotteryType }) | null> {
+  const row = await first<AccountInboxMatchRow>(
+    env.DB.prepare(
+      `SELECT *,
+          CASE
+            WHEN lower(macau_inbox) = lower(?) THEN 'macau'
+            WHEN lower(hongkong_inbox) = lower(?) THEN 'hongkong'
+          END AS lottery_type
+       FROM accounts
+       WHERE lower(macau_inbox) = lower(?)
+          OR lower(hongkong_inbox) = lower(?)
+       LIMIT 1`
+    ).bind(inbox, inbox, inbox, inbox)
+  );
+
+  if (!row) {
+    return null;
+  }
+
+  return {
+    ...toAccountRecord(row),
+    lotteryType: row.lottery_type
+  };
 }
 
 export async function getAccount(env: Env, account: string): Promise<AccountRecord | null> {
@@ -109,9 +135,9 @@ export async function createAccount(env: Env, account: string, input: UpsertAcco
   const now = formatNowIso();
 
   await env.DB.prepare(
-    "INSERT INTO accounts (account, inbox, enabled, created_at, updated_at) VALUES (?, ?, ?, ?, ?)"
+    "INSERT INTO accounts (account, macau_inbox, hongkong_inbox, enabled, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)"
   )
-    .bind(account, input.inbox, input.enabled ? 1 : 0, now, now)
+    .bind(account, normalizeNullableText(input.macauInbox), normalizeNullableText(input.hongkongInbox), input.enabled ? 1 : 0, now, now)
     .run();
 
   const created = await getAccount(env, account);
@@ -126,8 +152,8 @@ export async function createAccount(env: Env, account: string, input: UpsertAcco
 export async function updateAccount(env: Env, account: string, input: UpsertAccountRequest): Promise<AccountRecord | null> {
   const now = formatNowIso();
 
-  await env.DB.prepare("UPDATE accounts SET inbox = ?, enabled = ?, updated_at = ? WHERE account = ?")
-    .bind(input.inbox, input.enabled ? 1 : 0, now, account)
+  await env.DB.prepare("UPDATE accounts SET macau_inbox = ?, hongkong_inbox = ?, enabled = ?, updated_at = ? WHERE account = ?")
+    .bind(normalizeNullableText(input.macauInbox), normalizeNullableText(input.hongkongInbox), input.enabled ? 1 : 0, now, account)
     .run();
 
   return getAccount(env, account);
@@ -173,18 +199,22 @@ export async function getSessionUser(env: Env, tokenHash: string): Promise<Sessi
   };
 }
 
-export async function listExpectsForAccount(env: Env, account: string): Promise<UserExpectListItem[]> {
-  const rows = await all<{ expect: string; received_at: string; has_draw_result: number }>(
+export async function listExpectsForAccount(env: Env, account: string, lotteryType: LotteryType): Promise<UserExpectListItem[]> {
+  const rows = await all<{ expect: string; received_at: string; has_draw_result: number; lottery_type: LotteryType }>(
     env.DB.prepare(
-      `SELECT snapshots.expect, snapshots.received_at, CASE WHEN draws.expect IS NULL THEN 0 ELSE 1 END AS has_draw_result
+      `SELECT snapshots.expect, snapshots.received_at, snapshots.lottery_type, CASE WHEN draws.expect IS NULL THEN 0 ELSE 1 END AS has_draw_result
        FROM expect_snapshots AS snapshots
-       LEFT JOIN draw_results AS draws ON draws.expect = snapshots.expect
+       LEFT JOIN draw_results AS draws
+         ON draws.expect = snapshots.expect
+        AND draws.lottery_type = snapshots.lottery_type
        WHERE snapshots.account = ?
+         AND snapshots.lottery_type = ?
        ORDER BY snapshots.expect DESC`
-    ).bind(account)
+    ).bind(account, lotteryType)
   );
 
   return rows.map((row) => ({
+    lotteryType: row.lottery_type,
     expect: row.expect,
     receivedAt: row.received_at,
     hasDrawResult: Boolean(row.has_draw_result),
@@ -194,40 +224,42 @@ export async function listExpectsForAccount(env: Env, account: string): Promise<
   }));
 }
 
-export async function getSnapshotForAccountExpect(env: Env, account: string, expect: string): Promise<SnapshotRecord | null> {
+export async function getSnapshotForAccountExpect(env: Env, account: string, lotteryType: LotteryType, expect: string): Promise<SnapshotRecord | null> {
   const row = await first<SnapshotRow>(
-    env.DB.prepare("SELECT * FROM expect_snapshots WHERE account = ? AND expect = ? LIMIT 1").bind(account, expect)
+    env.DB.prepare("SELECT * FROM expect_snapshots WHERE account = ? AND lottery_type = ? AND expect = ? LIMIT 1").bind(account, lotteryType, expect)
   );
   return row ? toSnapshotRecord(row) : null;
 }
 
-export async function getDrawForExpect(env: Env, expect: string): Promise<DrawResultRecord | null> {
-  const row = await first<DrawRow>(env.DB.prepare("SELECT * FROM draw_results WHERE expect = ? LIMIT 1").bind(expect));
+export async function getDrawForExpect(env: Env, lotteryType: LotteryType, expect: string): Promise<DrawResultRecord | null> {
+  const row = await first<DrawRow>(env.DB.prepare("SELECT * FROM draw_results WHERE lottery_type = ? AND expect = ? LIMIT 1").bind(lotteryType, expect));
   return row ? toDrawRecord(row) : null;
 }
 
-export async function getAdminData(env: Env, account: string, expect: string): Promise<AdminDataResponse> {
+export async function getAdminData(env: Env, account: string, expect: string, lotteryType: LotteryType): Promise<AdminDataResponse> {
   const [snapshot, drawResult] = await Promise.all([
-    getSnapshotForAccountExpect(env, account, expect),
-    getDrawForExpect(env, expect)
+    getSnapshotForAccountExpect(env, account, lotteryType, expect),
+    getDrawForExpect(env, lotteryType, expect)
   ]);
 
   return {
+    lotteryType,
     snapshot,
     drawResult
   };
 }
 
-export async function getExpectDetail(env: Env, account: string, expect: string): Promise<ExpectDetailResponse | null> {
-  const snapshot = await getSnapshotForAccountExpect(env, account, expect);
+export async function getExpectDetail(env: Env, account: string, lotteryType: LotteryType, expect: string): Promise<ExpectDetailResponse | null> {
+  const snapshot = await getSnapshotForAccountExpect(env, account, lotteryType, expect);
 
   if (!snapshot) {
     return null;
   }
 
-  const drawResult = await getDrawForExpect(env, expect);
+  const drawResult = await getDrawForExpect(env, lotteryType, expect);
 
   return {
+    lotteryType,
     snapshot,
     drawResult
   };
@@ -235,6 +267,7 @@ export async function getExpectDetail(env: Env, account: string, expect: string)
 
 export async function upsertSnapshot(env: Env, input: {
   account: string;
+  lotteryType: LotteryType;
   expect: string;
   receivedAt: string;
   mailFrom: string | null;
@@ -246,11 +279,11 @@ export async function upsertSnapshot(env: Env, input: {
 
   await env.DB.prepare(
     `INSERT INTO expect_snapshots (
-        id, account, expect, received_at, mail_from, mail_subject,
+        id, account, lottery_type, expect, received_at, mail_from, mail_subject,
         raw_body, message_chunks_json, created_at, updated_at
       )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      ON CONFLICT(account, expect) DO UPDATE SET
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ON CONFLICT(account, lottery_type, expect) DO UPDATE SET
         received_at = excluded.received_at,
         mail_from = excluded.mail_from,
         mail_subject = excluded.mail_subject,
@@ -262,6 +295,7 @@ export async function upsertSnapshot(env: Env, input: {
     .bind(
       crypto.randomUUID(),
       input.account,
+      input.lotteryType,
       input.expect,
       input.receivedAt,
       input.mailFrom,
@@ -279,11 +313,11 @@ export async function upsertDrawResult(env: Env, input: DrawResultRecord & { sou
 
   await env.DB.prepare(
     `INSERT INTO draw_results (
-        expect, open_time, type, open_code, wave, zodiac, verify,
+        lottery_type, expect, open_time, type, open_code, wave, zodiac, verify,
         source_payload, fetched_at, created_at, updated_at
       )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      ON CONFLICT(expect) DO UPDATE SET
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ON CONFLICT(lottery_type, expect) DO UPDATE SET
         open_time = excluded.open_time,
         type = excluded.type,
         open_code = excluded.open_code,
@@ -293,8 +327,9 @@ export async function upsertDrawResult(env: Env, input: DrawResultRecord & { sou
         source_payload = excluded.source_payload,
         fetched_at = excluded.fetched_at,
         updated_at = excluded.updated_at`
-  )
+    )
     .bind(
+      input.lotteryType,
       input.expect,
       input.openTime,
       input.type,

@@ -1,4 +1,4 @@
-import type { ExpectDetailResponse, LoginRequest, LoginResponse, SessionUser, UserExpectListItem } from "@statisticalsystem/shared";
+import type { ExpectDetailResponse, LoginRequest, LoginResponse, LotteryType, SessionUser, UserExpectListItem } from "@statisticalsystem/shared";
 import { apiFetch } from "./api";
 
 export async function loginUser(payload: LoginRequest): Promise<LoginResponse> {
@@ -20,10 +20,10 @@ export async function getUserMe(): Promise<SessionUser> {
   return response.user;
 }
 
-export async function getUserExpects(): Promise<UserExpectListItem[]> {
-  return apiFetch<UserExpectListItem[]>("/api/user/expects");
+export async function getUserExpects(lotteryType: LotteryType): Promise<UserExpectListItem[]> {
+  return apiFetch<UserExpectListItem[]>(`/api/user/expects?lottery=${encodeURIComponent(lotteryType)}`);
 }
 
-export async function getUserExpectDetail(expect: string): Promise<ExpectDetailResponse> {
-  return apiFetch<ExpectDetailResponse>(`/api/user/expects/${expect}`);
+export async function getUserExpectDetail(expect: string, lotteryType: LotteryType): Promise<ExpectDetailResponse> {
+  return apiFetch<ExpectDetailResponse>(`/api/user/expects/${expect}?lottery=${encodeURIComponent(lotteryType)}`);
 }

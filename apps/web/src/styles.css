@@ -58,6 +58,10 @@ select {
   gap: 4px;
 }
 
+.brand__switch {
+  margin-top: 8px;
+}
+
 .brand__eyebrow,
 .eyebrow {
   font-size: 12px;
@@ -81,6 +85,30 @@ select {
 .nav-link.active,
 .nav-link:hover {
   background: rgba(255, 255, 255, 0.12);
+  color: #fff8ea;
+}
+
+.segmented-control {
+  display: inline-flex;
+  width: 100%;
+  border-radius: 14px;
+  padding: 4px;
+  background: rgba(255, 255, 255, 0.1);
+  gap: 4px;
+}
+
+.segmented-control__item {
+  flex: 1 1 0;
+  border: 0;
+  border-radius: 10px;
+  padding: 10px 8px;
+  background: transparent;
+  color: rgba(255, 247, 229, 0.8);
+  cursor: pointer;
+}
+
+.segmented-control__item.is-active {
+  background: rgba(255, 255, 255, 0.18);
   color: #fff8ea;
 }
 

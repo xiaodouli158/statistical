@@ -3,6 +3,7 @@ import type {
   AdminDataResponse,
   LoginRequest,
   LoginResponse,
+  LotteryType,
   SessionUser,
   UpsertAccountRequest,
   UpsertUserRequest,
@@ -65,13 +66,22 @@ export async function updateAdminAccount(account: string, payload: UpsertAccount
   });
 }
 
-export async function getAdminData(account: string, expect: string): Promise<AdminDataResponse> {
-  return apiFetch<AdminDataResponse>(`/api/admin/data?account=${encodeURIComponent(account)}&expect=${encodeURIComponent(expect)}`);
+export async function getAdminData(account: string, expect: string, lotteryType: LotteryType): Promise<AdminDataResponse> {
+  return apiFetch<AdminDataResponse>(
+    `/api/admin/data?account=${encodeURIComponent(account)}&expect=${encodeURIComponent(expect)}&lottery=${encodeURIComponent(lotteryType)}`
+  );
 }
 
-export async function syncAdminDraw(expect?: string): Promise<void> {
-  const query = expect ? `?expect=${encodeURIComponent(expect)}` : "";
-  await apiFetch(`/api/admin/draws/sync${query}`, {
+export async function syncAdminDraw(lotteryType: LotteryType, expect?: string): Promise<void> {
+  const query = new URLSearchParams();
+
+  query.set("lottery", lotteryType);
+
+  if (expect) {
+    query.set("expect", expect);
+  }
+
+  await apiFetch(`/api/admin/draws/sync?${query.toString()}`, {
     method: "POST",
     body: JSON.stringify({})
   });

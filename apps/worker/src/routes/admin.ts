@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import type { LoginRequest, LoginResponse, UpsertAccountRequest, UpsertUserRequest } from "@statisticalsystem/shared";
+import { normalizeLotteryType, type LoginRequest, type LoginResponse, type UpsertAccountRequest, type UpsertUserRequest } from "@statisticalsystem/shared";
 import { clearSession, persistSession, requireAuth } from "../auth/guard";
 import { hashPassword, verifyPassword } from "../auth/password";
 import { generateSessionToken, sha256 } from "../auth/session";
@@ -112,8 +112,8 @@ adminRoutes.get("/accounts", requireAuth("admin"), async (c) => {
 adminRoutes.post("/accounts", requireAuth("admin"), async (c) => {
   const body = await c.req.json<(UpsertAccountRequest & { account: string })>().catch(() => null);
 
-  if (!body?.account || !body.inbox) {
-    return c.json({ error: "缺少 account 或 inbox" }, 400);
+  if (!body?.account || (!body.macauInbox && !body.hongkongInbox)) {
+    return c.json({ error: "缺少 account 或至少一个彩种收件邮箱" }, 400);
   }
 
   const account = await createAccount(c.env, body.account, body);
@@ -123,8 +123,8 @@ adminRoutes.post("/accounts", requireAuth("admin"), async (c) => {
 adminRoutes.put("/accounts/:account", requireAuth("admin"), async (c) => {
   const body = await c.req.json<UpsertAccountRequest>().catch(() => null);
 
-  if (!body?.inbox) {
-    return c.json({ error: "缺少 inbox" }, 400);
+  if (!body || (!body.macauInbox && !body.hongkongInbox)) {
+    return c.json({ error: "至少需要保留一个彩种收件邮箱" }, 400);
   }
 
   const account = await updateAccount(c.env, c.req.param("account"), body);
@@ -139,17 +139,19 @@ adminRoutes.put("/accounts/:account", requireAuth("admin"), async (c) => {
 adminRoutes.get("/data", requireAuth("admin"), async (c) => {
   const account = c.req.query("account");
   const expect = c.req.query("expect");
+  const lotteryType = normalizeLotteryType(c.req.query("lottery"));
 
   if (!account || !expect) {
     return c.json({ error: "缺少 account 或 expect" }, 400);
   }
 
-  return c.json(await getAdminData(c.env, account, expect));
+  return c.json(await getAdminData(c.env, account, expect, lotteryType));
 });
 
 adminRoutes.post("/draws/sync", requireAuth("admin"), async (c) => {
   const targetExpect = c.req.query("expect") ?? undefined;
-  const result = await syncDrawOnce(c.env, targetExpect);
+  const lotteryType = normalizeLotteryType(c.req.query("lottery"));
+  const result = await syncDrawOnce(c.env, lotteryType, targetExpect);
   return c.json({ drawResult: result });
 });
 

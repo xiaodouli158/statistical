@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
-import type { ExpectDetailResponse } from "@statisticalsystem/shared";
+import type { ExpectDetailResponse, LotteryType } from "@statisticalsystem/shared";
 import { getUserExpectDetail } from "../../../services/user";
 
-export function useExpectDetailQuery(expect: string) {
+export function useExpectDetailQuery(expect: string, lotteryType: LotteryType) {
   const [state, setState] = useState<{
     data: ExpectDetailResponse | null;
     loading: boolean;
@@ -17,7 +17,7 @@ export function useExpectDetailQuery(expect: string) {
     let mounted = true;
     setState({ data: null, loading: true, error: null });
 
-    getUserExpectDetail(expect)
+    getUserExpectDetail(expect, lotteryType)
       .then((data) => {
         if (mounted) {
           setState({ data, loading: false, error: null });
@@ -32,7 +32,7 @@ export function useExpectDetailQuery(expect: string) {
     return () => {
       mounted = false;
     };
-  }, [expect]);
+  }, [expect, lotteryType]);
 
   return state;
 }

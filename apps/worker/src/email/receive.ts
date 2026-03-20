@@ -32,10 +32,11 @@ export async function handleEmail(message: ForwardableEmailMessage, env: Env): P
   const body = parsed.text.trim();
   const receivedAt = new Date();
   const messageChunks = cleanMailBody(body);
-  const expect = detectExpect(parsed.subject, body, receivedAt);
+  const expect = detectExpect(parsed.subject, body, receivedAt, account.lotteryType);
 
   await upsertSnapshot(env, {
     account: account.account,
+    lotteryType: account.lotteryType,
     expect,
     receivedAt: receivedAt.toISOString(),
     mailFrom: message.from,
