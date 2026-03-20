@@ -90,11 +90,22 @@ select {
 
 .segmented-control {
   display: inline-flex;
-  width: 100%;
+  width: auto;
   border-radius: 14px;
   padding: 4px;
-  background: rgba(255, 255, 255, 0.1);
   gap: 4px;
+}
+
+.segmented-control--full {
+  width: 100%;
+}
+
+.segmented-control--light {
+  background: rgba(31, 61, 50, 0.08);
+}
+
+.segmented-control--dark {
+  background: rgba(255, 255, 255, 0.1);
 }
 
 .segmented-control__item {
@@ -103,11 +114,24 @@ select {
   border-radius: 10px;
   padding: 10px 8px;
   background: transparent;
-  color: rgba(255, 247, 229, 0.8);
   cursor: pointer;
 }
 
-.segmented-control__item.is-active {
+.segmented-control--light .segmented-control__item {
+  color: #274135;
+}
+
+.segmented-control--light .segmented-control__item.is-active {
+  background: #fffef9;
+  color: #18392e;
+  box-shadow: 0 4px 14px rgba(39, 65, 53, 0.08);
+}
+
+.segmented-control--dark .segmented-control__item {
+  color: rgba(255, 247, 229, 0.8);
+}
+
+.segmented-control--dark .segmented-control__item.is-active {
   background: rgba(255, 255, 255, 0.18);
   color: #fff8ea;
 }
@@ -321,6 +345,14 @@ select {
   justify-items: center;
 }
 
+.bar-chart__plot {
+  display: grid;
+  align-items: end;
+  justify-items: center;
+  min-height: 176px;
+  gap: 6px;
+}
+
 .bar-chart__amount {
   font-size: 12px;
   color: #607169;
@@ -339,6 +371,17 @@ select {
 
 .bar-chart__label {
   font-size: 12px;
+}
+
+.bar-chart__label-stack {
+  display: grid;
+  gap: 2px;
+  justify-items: center;
+}
+
+.bar-chart__sublabel {
+  font-size: 11px;
+  color: #607169;
 }
 
 .table-wrap {

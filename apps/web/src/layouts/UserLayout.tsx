@@ -21,6 +21,8 @@ export function UserLayout() {
           <strong>StatisticalSystem</strong>
           <div className="brand__switch">
             <SegmentedControl<LotteryType>
+              fullWidth
+              variant="dark"
               value={lotteryType}
               options={[
                 { label: LOTTERY_LABELS.macau, value: "macau" },

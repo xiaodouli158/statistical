@@ -7,11 +7,27 @@ type SegmentedControlProps<T extends string> = {
   value: T;
   options: SegmentedOption<T>[];
   onChange: (value: T) => void;
+  variant?: "light" | "dark";
+  fullWidth?: boolean;
 };
 
-export function SegmentedControl<T extends string>({ value, options, onChange }: SegmentedControlProps<T>) {
+export function SegmentedControl<T extends string>({
+  value,
+  options,
+  onChange,
+  variant = "light",
+  fullWidth = false
+}: SegmentedControlProps<T>) {
+  const className = [
+    "segmented-control",
+    variant === "dark" ? "segmented-control--dark" : "segmented-control--light",
+    fullWidth ? "segmented-control--full" : ""
+  ]
+    .filter(Boolean)
+    .join(" ");
+
   return (
-    <div className="segmented-control">
+    <div className={className}>
       {options.map((option) => (
         <button
           key={option.value}

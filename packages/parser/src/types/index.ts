@@ -102,6 +102,4 @@ export type DetailViewState = {
   orderKeyword: string;
   numberSortMode: NumberSortMode;
   zodiacSortMode: NumberSortMode;
-  showAllNumberBars: boolean;
-  showAllZodiacBars: boolean;
 };

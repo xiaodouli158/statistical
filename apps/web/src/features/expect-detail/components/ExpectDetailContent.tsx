@@ -1,8 +1,8 @@
 import { useMemo, useState, type PropsWithChildren } from "react";
 import type { ExpectDetailResponse, NumberSortMode, OrderFilter } from "@statisticalsystem/shared";
 import { sortNumberBars } from "../../../utils/charts";
-import { ExpectHeader } from "./ExpectHeader";
 import { BarChartPanel } from "./BarChartPanel";
+import { ExpectHeader } from "./ExpectHeader";
 import { OrderExceptionList } from "./OrderExceptionList";
 import { OrderTable } from "./OrderTable";
 import { SummaryCards } from "./SummaryCards";
@@ -23,7 +23,6 @@ export function ExpectDetailContent({ data, children }: ExpectDetailContentProps
   const [orderKeyword, setOrderKeyword] = useState("");
   const [orderFilter, setOrderFilter] = useState<OrderFilter>("all");
   const [numberSortMode, setNumberSortMode] = useState<NumberSortMode>("natural");
-  const [showAllNumberBars, setShowAllNumberBars] = useState(true);
 
   const visibleOrders = useMemo(() => {
     return computed.settledOrders.filter((order) => {
@@ -53,14 +52,13 @@ export function ExpectDetailContent({ data, children }: ExpectDetailContentProps
         items={visibleNumberBars.map((item) => ({
           key: item.number,
           label: item.number,
+          sublabel: item.zodiac,
           amount: item.amount,
           accent: item.isDrawn ? WAVE_ACCENTS[item.wave ?? "blue"] : undefined,
           highlighted: item.isDrawn
         }))}
         sortMode={numberSortMode}
         onSortModeChange={setNumberSortMode}
-        showAll={showAllNumberBars}
-        onShowAllChange={setShowAllNumberBars}
       />
       <OrderExceptionList exceptions={computed.orderExceptions} />
       <OrderTable
