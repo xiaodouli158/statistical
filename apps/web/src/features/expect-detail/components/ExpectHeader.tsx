@@ -46,7 +46,7 @@ export function ExpectHeader({ lotteryType, expect, receivedAt, drawResult }: Ex
             </div>
           </div>
         ) : (
-          <p className="muted">当前尚无开奖号，订单与图表会先按下注内容展示。</p>
+          <p className="muted">当前还没有开奖号码，订单和图表会先按下注内容展示。</p>
         )}
       </div>
     </Panel>

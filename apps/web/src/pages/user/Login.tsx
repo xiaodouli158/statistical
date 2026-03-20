@@ -30,7 +30,7 @@ export function UserLoginPage() {
         <span className="brand__eyebrow">用户登录</span>
         <h1>查看历史期数与结算结果</h1>
         <label>
-          用户名
+          邮箱账号
           <input className="text-input" value={username} onChange={(event) => setUsername(event.target.value)} />
         </label>
         <label>

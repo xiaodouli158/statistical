@@ -166,7 +166,7 @@ export function OrderTable({ orders, keyword, onKeywordChange, filter, onFilterC
             </div>
 
             <div className="order-detail-section">
-              <span className="eyebrow">映射后内容</span>
+              <span className="eyebrow">解析后内容</span>
               <p className="order-detail-section__text">{selectedOrder.content || selectedOrder.raw}</p>
             </div>
 

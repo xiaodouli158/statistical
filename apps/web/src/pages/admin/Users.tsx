@@ -38,10 +38,6 @@ function toDraft(user: UserRecord): UserDraft {
   };
 }
 
-function roleLabel(role: Role): string {
-  return role === "admin" ? "管理员" : "用户";
-}
-
 function statusLabel(user: UserRecord, draft: UserDraft | undefined): string {
   if (user.isExpired) {
     return "已过期";
@@ -260,9 +256,7 @@ export function AdminUsersPage() {
                     </td>
                     <td>
                       <div className="table-action-group">
-                        <span className={user.isExpired ? "status-chip status-chip--danger" : "status-chip"}>
-                          {statusLabel(user, draft)}
-                        </span>
+                        <span className={user.isExpired ? "status-chip status-chip--danger" : "status-chip"}>{statusLabel(user, draft)}</span>
                         <button className="ghost-button" type="button" onClick={() => toggleStatus(user)}>
                           {draft?.status === "disabled" ? "改为启用" : "改为停用"}
                         </button>

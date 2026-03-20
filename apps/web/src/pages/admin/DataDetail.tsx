@@ -17,6 +17,7 @@ export function AdminDataDetailPage() {
   const { data, loading, error } = useExpectDetailQuery(`${account}:${lotteryType}:${expect}:${refreshToken}`, () =>
     getAdminExpectDetail(account, expect, lotteryType)
   );
+
   const backSearch = useMemo(() => {
     const params = new URLSearchParams();
 
