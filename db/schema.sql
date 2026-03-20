@@ -3,32 +3,15 @@ CREATE TABLE IF NOT EXISTS users (
   username TEXT NOT NULL UNIQUE,
   password_hash TEXT NOT NULL,
   role TEXT NOT NULL CHECK (role IN ('admin', 'user')),
-  account TEXT,
+  account TEXT NOT NULL UNIQUE,
   status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'disabled')),
+  member_expires_on TEXT,
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL
 );
 
-CREATE UNIQUE INDEX IF NOT EXISTS idx_users_account_unique
-ON users(account)
-WHERE account IS NOT NULL;
-
-CREATE TABLE IF NOT EXISTS accounts (
-  account TEXT PRIMARY KEY,
-  macau_inbox TEXT,
-  hongkong_inbox TEXT,
-  enabled INTEGER NOT NULL DEFAULT 1,
-  created_at TEXT NOT NULL,
-  updated_at TEXT NOT NULL
-);
-
-CREATE UNIQUE INDEX IF NOT EXISTS idx_accounts_macau_inbox_unique
-ON accounts(macau_inbox)
-WHERE macau_inbox IS NOT NULL;
-
-CREATE UNIQUE INDEX IF NOT EXISTS idx_accounts_hongkong_inbox_unique
-ON accounts(hongkong_inbox)
-WHERE hongkong_inbox IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_users_role_status
+ON users(role, status, member_expires_on, account);
 
 CREATE TABLE IF NOT EXISTS expect_snapshots (
   id TEXT PRIMARY KEY,
@@ -43,7 +26,7 @@ CREATE TABLE IF NOT EXISTS expect_snapshots (
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL,
   UNIQUE(account, lottery_type, expect),
-  FOREIGN KEY(account) REFERENCES accounts(account)
+  FOREIGN KEY(account) REFERENCES users(account)
 );
 
 CREATE INDEX IF NOT EXISTS idx_expect_snapshots_account_expect

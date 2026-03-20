@@ -1,12 +1,10 @@
 import type {
-  AccountRecord,
   AdminDataResponse,
   ExpectDetailResponse,
   LoginRequest,
   LoginResponse,
   LotteryType,
   SessionUser,
-  UpsertAccountRequest,
   UpsertUserRequest,
   UserExpectListItem,
   UserRecord
@@ -45,24 +43,6 @@ export async function createAdminUser(payload: UpsertUserRequest): Promise<UserR
 
 export async function updateAdminUser(id: string, payload: UpsertUserRequest): Promise<UserRecord> {
   return apiFetch<UserRecord>(`/api/admin/users/${id}`, {
-    method: "PUT",
-    body: JSON.stringify(payload)
-  });
-}
-
-export async function getAdminAccounts(): Promise<AccountRecord[]> {
-  return apiFetch<AccountRecord[]>("/api/admin/accounts");
-}
-
-export async function createAdminAccount(account: string, payload: UpsertAccountRequest): Promise<AccountRecord> {
-  return apiFetch<AccountRecord>("/api/admin/accounts", {
-    method: "POST",
-    body: JSON.stringify({ account, ...payload })
-  });
-}
-
-export async function updateAdminAccount(account: string, payload: UpsertAccountRequest): Promise<AccountRecord> {
-  return apiFetch<AccountRecord>(`/api/admin/accounts/${account}`, {
     method: "PUT",
     body: JSON.stringify(payload)
   });

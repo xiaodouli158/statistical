@@ -44,6 +44,11 @@ function formatBeijingDate(date: Date): string {
   return `${parts.year}-${String(parts.month).padStart(2, "0")}-${String(parts.day).padStart(2, "0")}`;
 }
 
+function normalizeDateOnly(value: string | null | undefined): string | null {
+  const trimmed = value?.trim() ?? "";
+  return /^\d{4}-\d{2}-\d{2}$/.test(trimmed) ? trimmed : null;
+}
+
 function getBusinessDate(date = new Date()): Date {
   const parts = getBeijingParts(date);
   const currentUtc = date.getTime();
@@ -89,6 +94,24 @@ function getNextHongkongDrawDate(date: Date): Date {
 
 export function formatNowIso(date = new Date()): string {
   return date.toISOString();
+}
+
+export function getBeijingDateString(date = new Date()): string {
+  return formatBeijingDate(date);
+}
+
+export function normalizeMemberExpiresOn(value: string | null | undefined): string | null {
+  return normalizeDateOnly(value);
+}
+
+export function isMembershipExpired(memberExpiresOn: string | null | undefined, date = new Date()): boolean {
+  const normalized = normalizeDateOnly(memberExpiresOn);
+
+  if (!normalized) {
+    return false;
+  }
+
+  return normalized < getBeijingDateString(date);
 }
 
 export function isLotteryDrawDay(lotteryType: LotteryType, date = new Date()): boolean {

@@ -43,17 +43,10 @@ export type UserRecord = {
   id: string;
   username: string;
   role: Role;
-  account: string | null;
-  status: UserStatus;
-  createdAt: string;
-  updatedAt: string;
-};
-
-export type AccountRecord = {
   account: string;
-  macauInbox: string | null;
-  hongkongInbox: string | null;
-  enabled: boolean;
+  status: UserStatus;
+  memberExpiresOn: string | null;
+  isExpired: boolean;
   createdAt: string;
   updatedAt: string;
 };
@@ -67,7 +60,7 @@ export type SessionUser = {
   id: string;
   username: string;
   role: Role;
-  account: string | null;
+  account: string;
 };
 
 export type LoginResponse = {
@@ -100,12 +93,6 @@ export type UpsertUserRequest = {
   username: string;
   password?: string;
   role: Role;
-  account: string | null;
   status: UserStatus;
-};
-
-export type UpsertAccountRequest = {
-  macauInbox: string | null;
-  hongkongInbox: string | null;
-  enabled: boolean;
+  memberExpiresOn: string | null;
 };

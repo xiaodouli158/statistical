@@ -20,9 +20,6 @@ export function AdminLayout() {
           <NavLink className="nav-link" to="/admin/users">
             用户管理
           </NavLink>
-          <NavLink className="nav-link" to="/admin/accounts">
-            账号管理
-          </NavLink>
           <NavLink className="nav-link" to="/admin/data">
             数据查看
           </NavLink>

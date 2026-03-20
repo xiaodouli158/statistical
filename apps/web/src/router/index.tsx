@@ -3,7 +3,6 @@ import { App } from "../App";
 import { RequireSession } from "../components/RequireSession";
 import { AdminLayout } from "../layouts/AdminLayout";
 import { UserLayout } from "../layouts/UserLayout";
-import { AdminAccountsPage } from "../pages/admin/Accounts";
 import { AdminDataDetailPage } from "../pages/admin/DataDetail";
 import { AdminDataViewerPage } from "../pages/admin/DataViewer";
 import { AdminLoginPage } from "../pages/admin/Login";
@@ -66,10 +65,6 @@ export const router = createBrowserRouter([
               {
                 path: "users",
                 element: <AdminUsersPage />
-              },
-              {
-                path: "accounts",
-                element: <AdminAccountsPage />
               },
               {
                 path: "data",

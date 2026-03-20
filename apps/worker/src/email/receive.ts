@@ -1,6 +1,8 @@
 import PostalMime from "postal-mime";
+import type { LotteryType } from "@statisticalsystem/shared";
 import type { Env } from "../db/types";
-import { getAccountByInbox, upsertSnapshot } from "../db/queries";
+import { getActiveMailUserBySender, upsertSnapshot } from "../db/queries";
+import { normalizeEmailAddress } from "../utils/strings";
 import { cleanMailBody } from "./clean";
 import { detectExpect } from "./detect-expect";
 
@@ -19,12 +21,44 @@ async function parseMail(message: ForwardableEmailMessage): Promise<ParsedMail> 
   };
 }
 
-export async function handleEmail(message: ForwardableEmailMessage, env: Env): Promise<void> {
-  const inbox = message.to.toLowerCase();
-  const account = await getAccountByInbox(env, inbox);
+function resolveLotteryType(env: Env, inbox: string): LotteryType | null {
+  const macauInbox = normalizeEmailAddress(env.MACAU_INBOX);
+  const hongkongInbox = normalizeEmailAddress(env.HONGKONG_INBOX);
 
-  if (!account || !account.enabled) {
-    message.setReject("Unknown or disabled inbox");
+  if (!macauInbox || !hongkongInbox || macauInbox === hongkongInbox) {
+    return null;
+  }
+
+  if (inbox === macauInbox) {
+    return "macau";
+  }
+
+  if (inbox === hongkongInbox) {
+    return "hongkong";
+  }
+
+  return null;
+}
+
+export async function handleEmail(message: ForwardableEmailMessage, env: Env): Promise<void> {
+  const inbox = normalizeEmailAddress(message.to);
+  const senderEmail = normalizeEmailAddress(message.from);
+  const lotteryType = inbox ? resolveLotteryType(env, inbox) : null;
+
+  if (!lotteryType) {
+    message.setReject("Unknown inbox");
+    return;
+  }
+
+  if (!senderEmail) {
+    message.setReject("Missing sender");
+    return;
+  }
+
+  const user = await getActiveMailUserBySender(env, senderEmail);
+
+  if (!user) {
+    message.setReject("Sender not allowed");
     return;
   }
 
@@ -32,14 +66,14 @@ export async function handleEmail(message: ForwardableEmailMessage, env: Env): P
   const body = parsed.text.trim();
   const receivedAt = new Date();
   const messageChunks = cleanMailBody(body);
-  const expect = detectExpect(parsed.subject, body, receivedAt, account.lotteryType);
+  const expect = detectExpect(parsed.subject, body, receivedAt, lotteryType);
 
   await upsertSnapshot(env, {
-    account: account.account,
-    lotteryType: account.lotteryType,
+    account: user.account,
+    lotteryType,
     expect,
     receivedAt: receivedAt.toISOString(),
-    mailFrom: message.from,
+    mailFrom: senderEmail,
     mailSubject: parsed.subject,
     rawBody: body,
     messageChunks

@@ -1,22 +1,13 @@
 import { Hono } from "hono";
-import { normalizeLotteryType, type LoginRequest, type LoginResponse, type UpsertAccountRequest, type UpsertUserRequest } from "@statisticalsystem/shared";
+import { normalizeLotteryType, type LoginRequest, type LoginResponse, type UpsertUserRequest } from "@statisticalsystem/shared";
 import { clearSession, persistSession, requireAuth } from "../auth/guard";
 import { hashPassword, verifyPassword } from "../auth/password";
 import { generateSessionToken, sha256 } from "../auth/session";
-import {
-  createAccount,
-  createUser,
-  getExpectDetail,
-  getAdminData,
-  getUserByUsername,
-  listExpectsForAccount,
-  listAccounts,
-  listUsers,
-  updateAccount,
-  updateUser
-} from "../db/queries";
+import { createUser, getAdminData, getExpectDetail, getUserByUsername, listExpectsForAccount, listUsers, updateUser } from "../db/queries";
 import type { AppVariables, Env } from "../db/types";
 import { syncDrawOnce } from "../draw/fetch";
+
+const DEFAULT_USER_PASSWORD = "123456";
 
 const adminRoutes = new Hono<{ Bindings: Env; Variables: AppVariables }>();
 
@@ -33,8 +24,8 @@ adminRoutes.post("/login", async (c) => {
     return c.json({ error: "账号或密码错误" }, 401);
   }
 
-  if (user.status !== "active") {
-    return c.json({ error: "账号已停用" }, 403);
+  if (user.status !== "active" || user.isExpired) {
+    return c.json({ error: "账号不可用" }, 403);
   }
 
   const valid = await verifyPassword(body.password, user.passwordHash);
@@ -76,66 +67,49 @@ adminRoutes.get("/users", requireAuth("admin"), async (c) => {
 adminRoutes.post("/users", requireAuth("admin"), async (c) => {
   const body = await c.req.json<UpsertUserRequest>().catch(() => null);
 
-  if (!body?.username || !body.password) {
-    return c.json({ error: "新增用户必须提供用户名和密码" }, 400);
+  if (!body?.username) {
+    return c.json({ error: "缺少邮箱账号" }, 400);
   }
 
-  const user = await createUser(c.env, {
-    ...body,
-    passwordHash: await hashPassword(body.password)
-  });
+  try {
+    const user = await createUser(c.env, {
+      username: body.username,
+      passwordHash: await hashPassword((body.password?.trim() || DEFAULT_USER_PASSWORD)),
+      role: body.role,
+      status: body.status,
+      memberExpiresOn: body.memberExpiresOn
+    });
 
-  return c.json(user, 201);
+    return c.json(user, 201);
+  } catch (error) {
+    return c.json({ error: (error as Error).message }, 400);
+  }
 });
 
 adminRoutes.put("/users/:id", requireAuth("admin"), async (c) => {
   const body = await c.req.json<UpsertUserRequest>().catch(() => null);
 
   if (!body?.username) {
-    return c.json({ error: "缺少用户名" }, 400);
+    return c.json({ error: "缺少邮箱账号" }, 400);
   }
 
-  const user = await updateUser(c.env, c.req.param("id"), {
-    ...body,
-    passwordHash: body.password ? await hashPassword(body.password) : undefined
-  });
+  try {
+    const user = await updateUser(c.env, c.req.param("id"), {
+      username: body.username,
+      passwordHash: body.password ? await hashPassword(body.password) : undefined,
+      role: body.role,
+      status: body.status,
+      memberExpiresOn: body.memberExpiresOn
+    });
 
-  if (!user) {
-    return c.json({ error: "用户不存在" }, 404);
+    if (!user) {
+      return c.json({ error: "用户不存在" }, 404);
+    }
+
+    return c.json(user);
+  } catch (error) {
+    return c.json({ error: (error as Error).message }, 400);
   }
-
-  return c.json(user);
-});
-
-adminRoutes.get("/accounts", requireAuth("admin"), async (c) => {
-  return c.json(await listAccounts(c.env));
-});
-
-adminRoutes.post("/accounts", requireAuth("admin"), async (c) => {
-  const body = await c.req.json<(UpsertAccountRequest & { account: string })>().catch(() => null);
-
-  if (!body?.account || (!body.macauInbox && !body.hongkongInbox)) {
-    return c.json({ error: "缺少 account 或至少一个彩种收件邮箱" }, 400);
-  }
-
-  const account = await createAccount(c.env, body.account, body);
-  return c.json(account, 201);
-});
-
-adminRoutes.put("/accounts/:account", requireAuth("admin"), async (c) => {
-  const body = await c.req.json<UpsertAccountRequest>().catch(() => null);
-
-  if (!body || (!body.macauInbox && !body.hongkongInbox)) {
-    return c.json({ error: "至少需要保留一个彩种收件邮箱" }, 400);
-  }
-
-  const account = await updateAccount(c.env, c.req.param("account"), body);
-
-  if (!account) {
-    return c.json({ error: "账号不存在" }, 404);
-  }
-
-  return c.json(account);
 });
 
 adminRoutes.get("/data/expects", requireAuth("admin"), async (c) => {
@@ -143,7 +117,7 @@ adminRoutes.get("/data/expects", requireAuth("admin"), async (c) => {
   const lotteryType = normalizeLotteryType(c.req.query("lottery"));
 
   if (!account) {
-    return c.json({ error: "缺少 account" }, 400);
+    return c.json({ error: "缺少编号" }, 400);
   }
 
   return c.json(await listExpectsForAccount(c.env, account, lotteryType));
@@ -154,7 +128,7 @@ adminRoutes.get("/data/expects/:expect", requireAuth("admin"), async (c) => {
   const lotteryType = normalizeLotteryType(c.req.query("lottery"));
 
   if (!account) {
-    return c.json({ error: "缺少 account" }, 400);
+    return c.json({ error: "缺少编号" }, 400);
   }
 
   const detail = await getExpectDetail(c.env, account, lotteryType, c.req.param("expect"));
@@ -172,7 +146,7 @@ adminRoutes.get("/data", requireAuth("admin"), async (c) => {
   const lotteryType = normalizeLotteryType(c.req.query("lottery"));
 
   if (!account || !expect) {
-    return c.json({ error: "缺少 account 或 expect" }, 400);
+    return c.json({ error: "缺少编号或期数" }, 400);
   }
 
   return c.json(await getAdminData(c.env, account, expect, lotteryType));

@@ -1,8 +1,11 @@
-import type { AccountRecord, DrawResultRecord, LotteryType, SessionUser, SnapshotRecord, UserRecord } from "@statisticalsystem/shared";
+import type { DrawResultRecord, LotteryType, SessionUser, SnapshotRecord, UserRecord } from "@statisticalsystem/shared";
+import { isMembershipExpired } from "../utils/time";
 
 export type Env = {
   DB: D1Database;
   APP_ORIGIN: string;
+  MACAU_INBOX?: string;
+  HONGKONG_INBOX?: string;
   DRAW_API_PRIMARY_URL?: string;
   DRAW_API_BACKUP_URL?: string;
   SESSION_TTL_DAYS?: string;
@@ -17,23 +20,11 @@ export type UserRow = {
   username: string;
   password_hash: string;
   role: "admin" | "user";
-  account: string | null;
-  status: "active" | "disabled";
-  created_at: string;
-  updated_at: string;
-};
-
-export type AccountRow = {
   account: string;
-  macau_inbox: string | null;
-  hongkong_inbox: string | null;
-  enabled: number;
+  status: "active" | "disabled";
+  member_expires_on: string | null;
   created_at: string;
   updated_at: string;
-};
-
-export type AccountInboxMatchRow = AccountRow & {
-  lottery_type: LotteryType;
 };
 
 export type SnapshotRow = {
@@ -75,17 +66,8 @@ export function toUserRecord(row: UserRow): UserRecord {
     role: row.role,
     account: row.account,
     status: row.status,
-    createdAt: row.created_at,
-    updatedAt: row.updated_at
-  };
-}
-
-export function toAccountRecord(row: AccountRow): AccountRecord {
-  return {
-    account: row.account,
-    macauInbox: row.macau_inbox,
-    hongkongInbox: row.hongkong_inbox,
-    enabled: Boolean(row.enabled),
+    memberExpiresOn: row.member_expires_on,
+    isExpired: isMembershipExpired(row.member_expires_on),
     createdAt: row.created_at,
     updatedAt: row.updated_at
   };

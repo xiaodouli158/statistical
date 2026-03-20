@@ -12,7 +12,7 @@ userRoutes.post("/login", async (c) => {
   const body = await c.req.json<LoginRequest>().catch(() => null);
 
   if (!body?.username || !body.password) {
-    return c.json({ error: "用户名和密码不能为空" }, 400);
+    return c.json({ error: "邮箱账号和密码不能为空" }, 400);
   }
 
   const user = await getUserByUsername(c.env, body.username);
@@ -23,6 +23,10 @@ userRoutes.post("/login", async (c) => {
 
   if (user.status !== "active") {
     return c.json({ error: "账号已停用" }, 403);
+  }
+
+  if (user.isExpired) {
+    return c.json({ error: "会员已到期" }, 403);
   }
 
   const valid = await verifyPassword(body.password, user.passwordHash);
@@ -60,23 +64,12 @@ userRoutes.get("/me", requireAuth("user"), async (c) => {
 userRoutes.get("/expects", requireAuth("user"), async (c) => {
   const sessionUser = c.get("sessionUser");
   const lotteryType = normalizeLotteryType(c.req.query("lottery"));
-
-  if (!sessionUser.account) {
-    return c.json([], 200);
-  }
-
-  const data = await listExpectsForAccount(c.env, sessionUser.account, lotteryType);
-  return c.json(data);
+  return c.json(await listExpectsForAccount(c.env, sessionUser.account, lotteryType));
 });
 
 userRoutes.get("/expects/:expect", requireAuth("user"), async (c) => {
   const sessionUser = c.get("sessionUser");
   const lotteryType = normalizeLotteryType(c.req.query("lottery"));
-
-  if (!sessionUser.account) {
-    return c.json({ error: "未绑定账号" }, 400);
-  }
-
   const detail = await getExpectDetail(c.env, sessionUser.account, lotteryType, c.req.param("expect"));
 
   if (!detail) {

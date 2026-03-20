@@ -1,19 +1,18 @@
 import type {
-  AccountRecord,
   AdminDataResponse,
   DrawResultRecord,
   ExpectDetailResponse,
   LotteryType,
   SessionUser,
   SnapshotRecord,
-  UpsertAccountRequest,
   UpsertUserRequest,
   UserExpectListItem,
   UserRecord
 } from "@statisticalsystem/shared";
-import { formatNowIso } from "../utils/time";
-import type { AccountInboxMatchRow, AccountRow, DrawRow, Env, SessionRow, SnapshotRow, UserRow } from "./types";
-import { toAccountRecord, toDrawRecord, toSnapshotRecord, toUserRecord } from "./types";
+import { normalizeEmailAddress } from "../utils/strings";
+import { formatNowIso, getBeijingDateString, isMembershipExpired, normalizeMemberExpiresOn } from "../utils/time";
+import type { DrawRow, Env, SessionRow, SnapshotRow, UserRow } from "./types";
+import { toDrawRecord, toSnapshotRecord, toUserRecord } from "./types";
 
 async function first<T>(statement: D1PreparedStatement): Promise<T | null> {
   return (await statement.first<T>()) ?? null;
@@ -24,15 +23,69 @@ async function all<T>(statement: D1PreparedStatement): Promise<T[]> {
   return result.results ?? [];
 }
 
-function normalizeNullableText(value: string | null | undefined): string | null {
-  const normalized = value?.trim() ?? "";
-  return normalized ? normalized : null;
+function normalizeLookupUsername(value: string | null | undefined): string | null {
+  const email = normalizeEmailAddress(value);
+
+  if (email) {
+    return email;
+  }
+
+  const trimmed = value?.trim().toLowerCase() ?? "";
+  return trimmed || null;
+}
+
+function normalizeUsernameOrThrow(value: string | null | undefined, role: UserRecord["role"]): string {
+  const normalized = normalizeLookupUsername(value);
+
+  if (!normalized) {
+    throw new Error("Username is required");
+  }
+
+  if (role === "user" && !normalizeEmailAddress(normalized)) {
+    throw new Error("User email is invalid");
+  }
+
+  return normalized;
+}
+
+function normalizeMemberExpiryForRole(value: string | null | undefined, role: UserRecord["role"]): string | null {
+  const normalized = normalizeMemberExpiresOn(value);
+
+  if (role === "user" && !normalized) {
+    throw new Error("Membership expiry is required for users");
+  }
+
+  return normalized;
+}
+
+function isUserAccessible(user: Pick<UserRecord, "status" | "isExpired">): boolean {
+  return user.status === "active" && !user.isExpired;
+}
+
+async function generateNextAccountCode(env: Env): Promise<string> {
+  const row = await first<{ account: string | null }>(
+    env.DB.prepare(
+      `SELECT account
+       FROM users
+       WHERE account GLOB 'c[0-9]*'
+       ORDER BY CAST(substr(account, 2) AS INTEGER) DESC
+       LIMIT 1`
+    )
+  );
+
+  const currentValue = row?.account ? Number.parseInt(row.account.slice(1), 10) : 0;
+  const nextValue = Number.isFinite(currentValue) ? currentValue + 1 : 1;
+  return `c${String(nextValue).padStart(4, "0")}`;
 }
 
 export async function getUserByUsername(env: Env, username: string): Promise<(UserRecord & { passwordHash: string }) | null> {
-  const row = await first<UserRow>(
-    env.DB.prepare("SELECT * FROM users WHERE username = ? LIMIT 1").bind(username)
-  );
+  const normalizedUsername = normalizeLookupUsername(username);
+
+  if (!normalizedUsername) {
+    return null;
+  }
+
+  const row = await first<UserRow>(env.DB.prepare("SELECT * FROM users WHERE username = ? LIMIT 1").bind(normalizedUsername));
 
   if (!row) {
     return null;
@@ -50,18 +103,24 @@ export async function getUserById(env: Env, id: string): Promise<UserRecord | nu
 }
 
 export async function listUsers(env: Env): Promise<UserRecord[]> {
-  const rows = await all<UserRow>(env.DB.prepare("SELECT * FROM users ORDER BY created_at DESC"));
+  const rows = await all<UserRow>(env.DB.prepare("SELECT * FROM users ORDER BY role ASC, account ASC"));
   return rows.map(toUserRecord);
 }
 
 export async function createUser(env: Env, input: UpsertUserRequest & { passwordHash: string }): Promise<UserRecord> {
   const now = formatNowIso();
   const id = crypto.randomUUID();
+  const account = await generateNextAccountCode(env);
+  const username = normalizeUsernameOrThrow(input.username, input.role);
+  const memberExpiresOn = normalizeMemberExpiryForRole(input.memberExpiresOn, input.role);
 
   await env.DB.prepare(
-    "INSERT INTO users (id, username, password_hash, role, account, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
+    `INSERT INTO users (
+        id, username, password_hash, role, account, status, member_expires_on, created_at, updated_at
+      )
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
   )
-    .bind(id, input.username, input.passwordHash, input.role, input.account, input.status, now, now)
+    .bind(id, username, input.passwordHash, input.role, account, input.status, memberExpiresOn, now, now)
     .run();
 
   const created = await getUserById(env, id);
@@ -85,78 +144,41 @@ export async function updateUser(
   }
 
   const now = formatNowIso();
+  const username = normalizeUsernameOrThrow(input.username, input.role);
+  const memberExpiresOn = normalizeMemberExpiryForRole(input.memberExpiresOn, input.role);
   const passwordHash = input.passwordHash ?? existing.password_hash;
 
   await env.DB.prepare(
-    "UPDATE users SET username = ?, password_hash = ?, role = ?, account = ?, status = ?, updated_at = ? WHERE id = ?"
+    `UPDATE users
+     SET username = ?, password_hash = ?, role = ?, status = ?, member_expires_on = ?, updated_at = ?
+     WHERE id = ?`
   )
-    .bind(input.username, passwordHash, input.role, input.account, input.status, now, id)
+    .bind(username, passwordHash, input.role, input.status, memberExpiresOn, now, id)
     .run();
 
   return getUserById(env, id);
 }
 
-export async function listAccounts(env: Env): Promise<AccountRecord[]> {
-  const rows = await all<AccountRow>(env.DB.prepare("SELECT * FROM accounts ORDER BY account ASC"));
-  return rows.map(toAccountRecord);
-}
+export async function getActiveMailUserBySender(env: Env, senderEmail: string): Promise<UserRecord | null> {
+  const normalizedSender = normalizeEmailAddress(senderEmail);
 
-export async function getAccountByInbox(env: Env, inbox: string): Promise<(AccountRecord & { lotteryType: LotteryType }) | null> {
-  const row = await first<AccountInboxMatchRow>(
-    env.DB.prepare(
-      `SELECT *,
-          CASE
-            WHEN lower(macau_inbox) = lower(?) THEN 'macau'
-            WHEN lower(hongkong_inbox) = lower(?) THEN 'hongkong'
-          END AS lottery_type
-       FROM accounts
-       WHERE lower(macau_inbox) = lower(?)
-          OR lower(hongkong_inbox) = lower(?)
-       LIMIT 1`
-    ).bind(inbox, inbox, inbox, inbox)
-  );
-
-  if (!row) {
+  if (!normalizedSender) {
     return null;
   }
 
-  return {
-    ...toAccountRecord(row),
-    lotteryType: row.lottery_type
-  };
-}
+  const row = await first<UserRow>(
+    env.DB.prepare(
+      `SELECT *
+       FROM users
+       WHERE role = 'user'
+         AND username = ?
+         AND status = 'active'
+         AND (member_expires_on IS NULL OR member_expires_on >= ?)
+       LIMIT 1`
+    ).bind(normalizedSender, getBeijingDateString())
+  );
 
-export async function getAccount(env: Env, account: string): Promise<AccountRecord | null> {
-  const row = await first<AccountRow>(env.DB.prepare("SELECT * FROM accounts WHERE account = ? LIMIT 1").bind(account));
-  return row ? toAccountRecord(row) : null;
-}
-
-export async function createAccount(env: Env, account: string, input: UpsertAccountRequest): Promise<AccountRecord> {
-  const now = formatNowIso();
-
-  await env.DB.prepare(
-    "INSERT INTO accounts (account, macau_inbox, hongkong_inbox, enabled, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)"
-  )
-    .bind(account, normalizeNullableText(input.macauInbox), normalizeNullableText(input.hongkongInbox), input.enabled ? 1 : 0, now, now)
-    .run();
-
-  const created = await getAccount(env, account);
-
-  if (!created) {
-    throw new Error("Failed to create account");
-  }
-
-  return created;
-}
-
-export async function updateAccount(env: Env, account: string, input: UpsertAccountRequest): Promise<AccountRecord | null> {
-  const now = formatNowIso();
-
-  await env.DB.prepare("UPDATE accounts SET macau_inbox = ?, hongkong_inbox = ?, enabled = ?, updated_at = ? WHERE account = ?")
-    .bind(normalizeNullableText(input.macauInbox), normalizeNullableText(input.hongkongInbox), input.enabled ? 1 : 0, now, account)
-    .run();
-
-  return getAccount(env, account);
+  return row ? toUserRecord(row) : null;
 }
 
 export async function createSession(env: Env, userId: string, tokenHash: string, expiresAt: string): Promise<void> {
@@ -173,10 +195,7 @@ export async function deleteSession(env: Env, tokenHash: string): Promise<void> 
 
 export async function getSessionUser(env: Env, tokenHash: string): Promise<SessionUser | null> {
   const now = formatNowIso();
-
-  const row = await first<
-    UserRow & SessionRow
-  >(
+  const row = await first<UserRow & SessionRow>(
     env.DB.prepare(
       `SELECT users.*, sessions.expires_at
        FROM sessions
@@ -191,11 +210,17 @@ export async function getSessionUser(env: Env, tokenHash: string): Promise<Sessi
     return null;
   }
 
+  const user = toUserRecord(row);
+
+  if (!isUserAccessible(user)) {
+    return null;
+  }
+
   return {
-    id: row.id,
-    username: row.username,
-    role: row.role,
-    account: row.account
+    id: user.id,
+    username: user.username,
+    role: user.role,
+    account: user.account
   };
 }
 
@@ -327,7 +352,7 @@ export async function upsertDrawResult(env: Env, input: DrawResultRecord & { sou
         source_payload = excluded.source_payload,
         fetched_at = excluded.fetched_at,
         updated_at = excluded.updated_at`
-    )
+  )
     .bind(
       input.lotteryType,
       input.expect,
