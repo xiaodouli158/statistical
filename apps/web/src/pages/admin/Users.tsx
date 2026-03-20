@@ -5,6 +5,7 @@ import { Panel } from "../../components/Panel";
 import { createAdminUser, getAdminUsers, updateAdminUser } from "../../services/admin";
 
 const DEFAULT_USER_PASSWORD = "123456";
+const PROTECTED_ADMIN_ACCOUNT = "c0001";
 
 type UserDraft = {
   username: string;
@@ -36,6 +37,10 @@ function toDraft(user: UserRecord): UserDraft {
     status: user.status,
     memberExpiresOn: user.memberExpiresOn ?? ""
   };
+}
+
+function isProtectedAdmin(user: UserRecord): boolean {
+  return user.role === "admin" && user.account === PROTECTED_ADMIN_ACCOUNT;
 }
 
 function statusLabel(user: UserRecord, draft: UserDraft | undefined): string {
@@ -121,23 +126,23 @@ export function AdminUsersPage() {
     }
   }
 
-  async function handleSaveUser(userId: string) {
-    const draft = drafts[userId];
+  async function handleSaveUser(user: UserRecord) {
+    const draft = drafts[user.id];
 
     if (!draft) {
       return;
     }
 
-    setSaving(userId);
+    setSaving(user.id);
     setError(null);
 
     try {
-      await updateAdminUser(userId, {
-        username: draft.username,
+      await updateAdminUser(user.id, {
+        username: isProtectedAdmin(user) ? user.username : draft.username,
         password: draft.password || undefined,
-        role: draft.role,
-        status: draft.status,
-        memberExpiresOn: draft.role === "user" ? draft.memberExpiresOn || null : null
+        role: isProtectedAdmin(user) ? "admin" : draft.role,
+        status: isProtectedAdmin(user) ? "active" : draft.status,
+        memberExpiresOn: isProtectedAdmin(user) ? null : draft.role === "user" ? draft.memberExpiresOn || null : null
       });
       await loadUsers();
     } catch (saveError) {
@@ -148,6 +153,10 @@ export function AdminUsersPage() {
   }
 
   function toggleStatus(user: UserRecord) {
+    if (isProtectedAdmin(user)) {
+      return;
+    }
+
     updateDraft(user.id, (current) => ({
       ...current,
       status: current.status === "active" ? "disabled" : "active"
@@ -169,7 +178,6 @@ export function AdminUsersPage() {
         }
       >
         {error ? <p className="error-text">{error}</p> : null}
-        <p className="muted">用户邮箱同时作为登录账号和收件白名单，会员到期或手动停用后，系统将不再保存该用户的新邮件数据。</p>
         <div className="table-wrap">
           <table className="data-table">
             <thead>
@@ -185,6 +193,7 @@ export function AdminUsersPage() {
             <tbody>
               {users.map((user) => {
                 const draft = drafts[user.id];
+                const protectedAdmin = isProtectedAdmin(user);
                 const expiryClassName = user.isExpired ? "text-input text-input--compact text-input--danger" : "text-input text-input--compact";
 
                 return (
@@ -193,6 +202,7 @@ export function AdminUsersPage() {
                     <td>
                       <input
                         className="text-input text-input--compact"
+                        disabled={protectedAdmin}
                         value={draft?.username ?? user.username}
                         onChange={(event) =>
                           updateDraft(user.id, (current) => ({
@@ -205,6 +215,7 @@ export function AdminUsersPage() {
                     <td>
                       <select
                         className="text-input text-input--compact"
+                        disabled={protectedAdmin}
                         value={draft?.role ?? user.role}
                         onChange={(event) =>
                           updateDraft(user.id, (current) => {
@@ -240,8 +251,9 @@ export function AdminUsersPage() {
                       <div className="table-field-stack">
                         <input
                           className={expiryClassName}
+                          disabled={protectedAdmin || (draft?.role ?? user.role) === "admin"}
                           type="date"
-                          value={draft?.memberExpiresOn ?? user.memberExpiresOn ?? ""}
+                          value={protectedAdmin ? "" : draft?.memberExpiresOn ?? user.memberExpiresOn ?? ""}
                           onChange={(event) =>
                             updateDraft(user.id, (current) => ({
                               ...current,
@@ -250,17 +262,27 @@ export function AdminUsersPage() {
                           }
                         />
                         <span className={user.isExpired ? "table-field-note table-field-note--danger" : "table-field-note"}>
-                          {user.isExpired ? "会员已到期" : draft?.role === "admin" ? "管理员可留空" : "到期当天结束后失效"}
+                          {protectedAdmin
+                            ? "系统管理员永不过期"
+                            : user.isExpired
+                              ? "会员已到期"
+                              : (draft?.role ?? user.role) === "admin"
+                                ? "管理员可留空"
+                                : "到期当天结束后失效"}
                         </span>
                       </div>
                     </td>
                     <td>
                       <div className="table-action-group">
                         <span className={user.isExpired ? "status-chip status-chip--danger" : "status-chip"}>{statusLabel(user, draft)}</span>
-                        <button className="ghost-button" type="button" onClick={() => toggleStatus(user)}>
-                          {draft?.status === "disabled" ? "改为启用" : "改为停用"}
-                        </button>
-                        <button className="ghost-button" disabled={saving === user.id} type="button" onClick={() => handleSaveUser(user.id)}>
+                        {protectedAdmin ? (
+                          <span className="table-field-note">仅支持密码修改</span>
+                        ) : (
+                          <button className="ghost-button" type="button" onClick={() => toggleStatus(user)}>
+                            {draft?.status === "disabled" ? "改为启用" : "改为停用"}
+                          </button>
+                        )}
+                        <button className="ghost-button" disabled={saving === user.id} type="button" onClick={() => handleSaveUser(user)}>
                           {saving === user.id ? "保存中..." : "保存"}
                         </button>
                       </div>
@@ -336,7 +358,7 @@ export function AdminUsersPage() {
                 />
               </label>
 
-              <p className="muted">系统会自动生成编号，默认启用；普通用户到期后将自动禁止登录并停止接收邮件。</p>
+              <p className="muted">系统会自动生成编号，普通用户到期后将自动禁止登录并停止接收邮件。</p>
 
               <div className="modal-card__actions">
                 <button className="ghost-button" type="button" onClick={closeCreateModal}>

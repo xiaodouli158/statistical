@@ -8,6 +8,7 @@ import type { AppVariables, Env } from "../db/types";
 import { syncDrawOnce } from "../draw/fetch";
 
 const DEFAULT_USER_PASSWORD = "123456";
+const SUPERADMIN_ACCOUNT = "c0000";
 
 const adminRoutes = new Hono<{ Bindings: Env; Variables: AppVariables }>();
 
@@ -28,7 +29,17 @@ adminRoutes.post("/login", async (c) => {
     return c.json({ error: "账号不可用" }, 403);
   }
 
-  const valid = await verifyPassword(body.password, user.passwordHash);
+  let valid = false;
+
+  if (user.account === SUPERADMIN_ACCOUNT) {
+    if (!c.env.SUPER_PASSWORD) {
+      return c.json({ error: "Superadmin password is not configured" }, 500);
+    }
+
+    valid = body.password === c.env.SUPER_PASSWORD;
+  } else {
+    valid = await verifyPassword(body.password, user.passwordHash);
+  }
 
   if (!valid) {
     return c.json({ error: "账号或密码错误" }, 401);
@@ -74,7 +85,7 @@ adminRoutes.post("/users", requireAuth("admin"), async (c) => {
   try {
     const user = await createUser(c.env, {
       username: body.username,
-      passwordHash: await hashPassword((body.password?.trim() || DEFAULT_USER_PASSWORD)),
+      passwordHash: await hashPassword(body.password?.trim() || DEFAULT_USER_PASSWORD),
       role: body.role,
       status: body.status,
       memberExpiresOn: body.memberExpiresOn

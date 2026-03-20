@@ -16,8 +16,8 @@
   ],
   "vars": {
     "APP_ORIGIN": "https://statisticalsystem.pages.dev",
-    "MACAU_INBOX": "aaa@abs.com",
-    "HONGKONG_INBOX": "xxx@abs.com",
+    "MACAU_INBOX": "aaa@opentun.qzz.io",
+    "HONGKONG_INBOX": "xxx@opentun.qzz.io",
     "DRAW_API_PRIMARY_URL": "https://api3.marksix6.net/lottery_api.php",
     "DRAW_API_BACKUP_URL": "https://marksix6.net/api/lottery_api.php",
     "SESSION_TTL_DAYS": "7"

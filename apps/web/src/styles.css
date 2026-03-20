@@ -70,6 +70,12 @@ select {
   color: #9fb6a8;
 }
 
+.brand__account {
+  display: block;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
 .nav-list {
   display: grid;
   gap: 10px;
@@ -480,6 +486,16 @@ select {
 
 .ghost-button--full {
   width: 100%;
+}
+
+.shell__sidebar .ghost-button {
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff8ea;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+}
+
+.shell__sidebar .ghost-button:hover {
+  background: rgba(255, 255, 255, 0.18);
 }
 
 .error-text {

@@ -1,23 +1,51 @@
+import { useEffect, useState } from "react";
 import { LOTTERY_LABELS, type LotteryType } from "@statisticalsystem/shared";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { SegmentedControl } from "../components/SegmentedControl";
 import { useLotteryType } from "../hooks/useLotteryType";
-import { logoutUser } from "../services/user";
+import { getUserMe, logoutUser } from "../services/user";
 
 export function UserLayout() {
   const navigate = useNavigate();
   const { lotteryType, lotterySearch, setLotteryType } = useLotteryType();
+  const [username, setUsername] = useState<string>("");
+
+  useEffect(() => {
+    let mounted = true;
+
+    async function loadCurrentUser() {
+      try {
+        const currentUser = await getUserMe();
+
+        if (mounted) {
+          setUsername(currentUser.username);
+        }
+      } catch {
+        if (mounted) {
+          setUsername("");
+        }
+      }
+    }
+
+    void loadCurrentUser();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   async function handleLogout() {
     await logoutUser();
     navigate("/login", { replace: true });
   }
 
+  const brandLabel = username ? `用户端（${username}）` : "用户端";
+
   return (
     <div className="shell">
       <aside className="shell__sidebar">
         <div className="brand">
-          <span className="brand__eyebrow">用户端</span>
+          <span className="brand__eyebrow brand__account">{brandLabel}</span>
           <strong>StatisticalSystem</strong>
           <div className="brand__switch">
             <SegmentedControl<LotteryType>

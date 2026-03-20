@@ -4,6 +4,7 @@ import { isMembershipExpired } from "../utils/time";
 export type Env = {
   DB: D1Database;
   APP_ORIGIN: string;
+  SUPER_PASSWORD?: string;
   MACAU_INBOX?: string;
   HONGKONG_INBOX?: string;
   DRAW_API_PRIMARY_URL?: string;
