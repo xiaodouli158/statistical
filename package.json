@@ -8,6 +8,8 @@
   ],
   "scripts": {
     "build": "npm run build -w @statisticalsystem/shared && npm run build -w @statisticalsystem/parser && npm run build -w @statisticalsystem/worker && npm run build -w @statisticalsystem/web",
+    "build:worker": "npm run build -w @statisticalsystem/shared && npm run build -w @statisticalsystem/parser && npm run build -w @statisticalsystem/worker",
+    "deploy:worker": "npm run cf:worker:deploy",
     "typecheck": "npm run typecheck -w @statisticalsystem/shared && npm run typecheck -w @statisticalsystem/parser && npm run typecheck -w @statisticalsystem/worker && npm run typecheck -w @statisticalsystem/web",
     "dev:web": "npm run dev -w @statisticalsystem/web",
     "dev:worker": "npm run dev -w @statisticalsystem/worker",
