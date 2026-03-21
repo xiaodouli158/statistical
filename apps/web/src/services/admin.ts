@@ -1,6 +1,6 @@
 import type {
   AdminDataResponse,
-  ExpectDetailResponse,
+  AdminExpectDetailResponse,
   LoginRequest,
   LoginResponse,
   LotteryType,
@@ -60,8 +60,8 @@ export async function getAdminExpects(account: string, lotteryType: LotteryType)
   );
 }
 
-export async function getAdminExpectDetail(account: string, expect: string, lotteryType: LotteryType): Promise<ExpectDetailResponse> {
-  return apiFetch<ExpectDetailResponse>(
+export async function getAdminExpectDetail(account: string, expect: string, lotteryType: LotteryType): Promise<AdminExpectDetailResponse> {
+  return apiFetch<AdminExpectDetailResponse>(
     `/api/admin/data/expects/${encodeURIComponent(expect)}?account=${encodeURIComponent(account)}&lottery=${encodeURIComponent(lotteryType)}`
   );
 }

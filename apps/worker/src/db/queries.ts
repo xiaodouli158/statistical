@@ -1,6 +1,8 @@
 import type {
   AdminDataResponse,
+  AdminExpectDetailResponse,
   DrawResultRecord,
+  ExpectDetailComputed,
   ExpectDetailResponse,
   LotteryType,
   SessionUser,
@@ -9,13 +11,16 @@ import type {
   UserExpectListItem,
   UserRecord
 } from "@statisticalsystem/shared";
+import { buildNumberBars, buildSummaryMetrics, normalizeDrawResult, parseOrders, resolveOddsConfig, settleOrders } from "@statisticalsystem/parser";
 import { normalizeEmailAddress } from "../utils/strings";
-import { formatNowIso, getBeijingDateString, isMembershipExpired, normalizeMemberExpiresOn } from "../utils/time";
-import type { DrawRow, Env, SessionRow, SnapshotRow, UserRow } from "./types";
-import { toDrawRecord, toSnapshotRecord, toUserRecord } from "./types";
+import { formatNowIso, getBeijingDateString, normalizeMemberExpiresOn } from "../utils/time";
+import type { DrawRow, Env, ExpectComputeCacheRow, SessionRow, SnapshotRow, UserRow } from "./types";
+import { toDrawRecord, toExpectDetailComputed, toSnapshotMeta, toSnapshotRecord, toUserRecord } from "./types";
 
 const HIDDEN_SYSTEM_ACCOUNT = "c0000";
 const PROTECTED_ADMIN_ACCOUNTS = new Set(["c0000", "c0001"]);
+const EXPECT_COMPUTE_PARSER_VERSION = "v1";
+const ORDER_ODDS_CONFIG = resolveOddsConfig();
 
 async function first<T>(statement: D1PreparedStatement): Promise<T | null> {
   return (await statement.first<T>()) ?? null;
@@ -83,6 +88,142 @@ async function generateNextAccountCode(env: Env): Promise<string> {
   const currentValue = row?.account ? Number.parseInt(row.account.slice(1), 10) : 0;
   const nextValue = Number.isFinite(currentValue) ? currentValue + 1 : 1;
   return `c${String(nextValue).padStart(4, "0")}`;
+}
+
+function buildExpectDetailComputed(snapshot: SnapshotRecord, drawResult: DrawResultRecord | null): ExpectDetailComputed {
+  const normalizedDrawResult = normalizeDrawResult(drawResult);
+  const parsed = parseOrders(snapshot.messageChunks, normalizedDrawResult?.openTime ?? snapshot.receivedAt, ORDER_ODDS_CONFIG);
+  const settledOrders = settleOrders(parsed.orders, normalizedDrawResult);
+
+  return {
+    settledOrders,
+    orderExceptions: parsed.exceptions,
+    summary: buildSummaryMetrics(settledOrders),
+    numberBarsBase: buildNumberBars(settledOrders, normalizedDrawResult, snapshot.receivedAt)
+  };
+}
+
+async function getSnapshotRowForAccountExpect(
+  env: Env,
+  account: string,
+  lotteryType: LotteryType,
+  expect: string
+): Promise<SnapshotRow | null> {
+  return first<SnapshotRow>(
+    env.DB.prepare("SELECT * FROM expect_snapshots WHERE account = ? AND lottery_type = ? AND expect = ? LIMIT 1").bind(account, lotteryType, expect)
+  );
+}
+
+async function listSnapshotRowsForExpect(env: Env, lotteryType: LotteryType, expect: string): Promise<SnapshotRow[]> {
+  return all<SnapshotRow>(
+    env.DB.prepare("SELECT * FROM expect_snapshots WHERE lottery_type = ? AND expect = ? ORDER BY account ASC").bind(lotteryType, expect)
+  );
+}
+
+async function getDrawRowForExpect(env: Env, lotteryType: LotteryType, expect: string): Promise<DrawRow | null> {
+  return first<DrawRow>(env.DB.prepare("SELECT * FROM draw_results WHERE lottery_type = ? AND expect = ? LIMIT 1").bind(lotteryType, expect));
+}
+
+async function getExpectComputeCacheRow(
+  env: Env,
+  account: string,
+  lotteryType: LotteryType,
+  expect: string
+): Promise<ExpectComputeCacheRow | null> {
+  return first<ExpectComputeCacheRow>(
+    env.DB.prepare("SELECT * FROM expect_compute_cache WHERE account = ? AND lottery_type = ? AND expect = ? LIMIT 1").bind(account, lotteryType, expect)
+  );
+}
+
+function isExpectComputeCacheFresh(
+  snapshotRow: SnapshotRow,
+  drawRow: DrawRow | null,
+  cacheRow: ExpectComputeCacheRow | null
+): cacheRow is ExpectComputeCacheRow {
+  if (!cacheRow) {
+    return false;
+  }
+
+  return cacheRow.snapshot_updated_at === snapshotRow.updated_at && cacheRow.draw_updated_at === (drawRow?.updated_at ?? null);
+}
+
+async function upsertExpectComputeCache(
+  env: Env,
+  snapshotRow: SnapshotRow,
+  drawRow: DrawRow | null,
+  computed: ExpectDetailComputed
+): Promise<void> {
+  const now = formatNowIso();
+  const drawUpdatedAt = drawRow?.updated_at ?? null;
+  const computeStatus = drawRow ? "settled" : "parsed";
+
+  await env.DB.prepare(
+    `INSERT INTO expect_compute_cache (
+        account, lottery_type, expect, parser_version, snapshot_updated_at, draw_updated_at,
+        compute_status, order_count, exception_count, total_amount, win_amount, profit,
+        computed_json, created_at, updated_at
+      )
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ON CONFLICT(account, lottery_type, expect) DO UPDATE SET
+        parser_version = excluded.parser_version,
+        snapshot_updated_at = excluded.snapshot_updated_at,
+        draw_updated_at = excluded.draw_updated_at,
+        compute_status = excluded.compute_status,
+        order_count = excluded.order_count,
+        exception_count = excluded.exception_count,
+        total_amount = excluded.total_amount,
+        win_amount = excluded.win_amount,
+        profit = excluded.profit,
+        computed_json = excluded.computed_json,
+        updated_at = excluded.updated_at`
+  )
+    .bind(
+      snapshotRow.account,
+      snapshotRow.lottery_type,
+      snapshotRow.expect,
+      EXPECT_COMPUTE_PARSER_VERSION,
+      snapshotRow.updated_at,
+      drawUpdatedAt,
+      computeStatus,
+      computed.summary.orderCount,
+      computed.orderExceptions.length,
+      computed.summary.totalAmount,
+      computed.summary.winAmount,
+      computed.summary.profit,
+      JSON.stringify(computed),
+      now,
+      now
+    )
+    .run();
+}
+
+function buildExpectDetailResponse(
+  snapshotRow: SnapshotRow,
+  drawRow: DrawRow | null,
+  computed: ExpectDetailComputed
+): ExpectDetailResponse {
+  return {
+    lotteryType: snapshotRow.lottery_type,
+    snapshot: toSnapshotMeta(snapshotRow),
+    drawResult: drawRow ? toDrawRecord(drawRow) : null,
+    computed
+  };
+}
+
+async function ensureExpectComputeCache(
+  env: Env,
+  snapshotRow: SnapshotRow,
+  drawRow: DrawRow | null
+): Promise<ExpectDetailComputed> {
+  const existingCache = await getExpectComputeCacheRow(env, snapshotRow.account, snapshotRow.lottery_type, snapshotRow.expect);
+
+  if (isExpectComputeCacheFresh(snapshotRow, drawRow, existingCache)) {
+    return toExpectDetailComputed(existingCache);
+  }
+
+  const computed = buildExpectDetailComputed(toSnapshotRecord(snapshotRow), drawRow ? toDrawRecord(drawRow) : null);
+  await upsertExpectComputeCache(env, snapshotRow, drawRow, computed);
+  return computed;
 }
 
 export async function getUserByUsername(env: Env, username: string): Promise<(UserRecord & { passwordHash: string }) | null> {
@@ -243,13 +384,32 @@ export async function getSessionUser(env: Env, tokenHash: string): Promise<Sessi
 }
 
 export async function listExpectsForAccount(env: Env, account: string, lotteryType: LotteryType): Promise<UserExpectListItem[]> {
-  const rows = await all<{ expect: string; received_at: string; has_draw_result: number; lottery_type: LotteryType }>(
+  const rows = await all<{
+    expect: string;
+    received_at: string;
+    has_draw_result: number;
+    lottery_type: LotteryType;
+    order_count: number | null;
+    win_amount: number | null;
+    profit: number | null;
+  }>(
     env.DB.prepare(
-      `SELECT snapshots.expect, snapshots.received_at, snapshots.lottery_type, CASE WHEN draws.expect IS NULL THEN 0 ELSE 1 END AS has_draw_result
+      `SELECT
+         snapshots.expect,
+         snapshots.received_at,
+         snapshots.lottery_type,
+         CASE WHEN draws.expect IS NULL THEN 0 ELSE 1 END AS has_draw_result,
+         compute.order_count,
+         compute.win_amount,
+         compute.profit
        FROM expect_snapshots AS snapshots
        LEFT JOIN draw_results AS draws
          ON draws.expect = snapshots.expect
         AND draws.lottery_type = snapshots.lottery_type
+       LEFT JOIN expect_compute_cache AS compute
+         ON compute.account = snapshots.account
+        AND compute.lottery_type = snapshots.lottery_type
+        AND compute.expect = snapshots.expect
        WHERE snapshots.account = ?
          AND snapshots.lottery_type = ?
        ORDER BY snapshots.expect DESC`
@@ -261,21 +421,19 @@ export async function listExpectsForAccount(env: Env, account: string, lotteryTy
     expect: row.expect,
     receivedAt: row.received_at,
     hasDrawResult: Boolean(row.has_draw_result),
-    orderCount: 0,
-    winAmount: null,
-    profit: null
+    orderCount: row.order_count ?? 0,
+    winAmount: row.win_amount,
+    profit: row.profit
   }));
 }
 
 export async function getSnapshotForAccountExpect(env: Env, account: string, lotteryType: LotteryType, expect: string): Promise<SnapshotRecord | null> {
-  const row = await first<SnapshotRow>(
-    env.DB.prepare("SELECT * FROM expect_snapshots WHERE account = ? AND lottery_type = ? AND expect = ? LIMIT 1").bind(account, lotteryType, expect)
-  );
+  const row = await getSnapshotRowForAccountExpect(env, account, lotteryType, expect);
   return row ? toSnapshotRecord(row) : null;
 }
 
 export async function getDrawForExpect(env: Env, lotteryType: LotteryType, expect: string): Promise<DrawResultRecord | null> {
-  const row = await first<DrawRow>(env.DB.prepare("SELECT * FROM draw_results WHERE lottery_type = ? AND expect = ? LIMIT 1").bind(lotteryType, expect));
+  const row = await getDrawRowForExpect(env, lotteryType, expect);
   return row ? toDrawRecord(row) : null;
 }
 
@@ -293,19 +451,63 @@ export async function getAdminData(env: Env, account: string, expect: string, lo
 }
 
 export async function getExpectDetail(env: Env, account: string, lotteryType: LotteryType, expect: string): Promise<ExpectDetailResponse | null> {
-  const snapshot = await getSnapshotForAccountExpect(env, account, lotteryType, expect);
+  const snapshotRow = await getSnapshotRowForAccountExpect(env, account, lotteryType, expect);
 
-  if (!snapshot) {
+  if (!snapshotRow) {
     return null;
   }
 
-  const drawResult = await getDrawForExpect(env, lotteryType, expect);
+  const drawRow = await getDrawRowForExpect(env, lotteryType, expect);
+  const computed = await ensureExpectComputeCache(env, snapshotRow, drawRow);
+
+  return buildExpectDetailResponse(snapshotRow, drawRow, computed);
+}
+
+export async function getAdminExpectDetail(
+  env: Env,
+  account: string,
+  lotteryType: LotteryType,
+  expect: string
+): Promise<AdminExpectDetailResponse | null> {
+  const snapshotRow = await getSnapshotRowForAccountExpect(env, account, lotteryType, expect);
+
+  if (!snapshotRow) {
+    return null;
+  }
+
+  const drawRow = await getDrawRowForExpect(env, lotteryType, expect);
+  const computed = await ensureExpectComputeCache(env, snapshotRow, drawRow);
 
   return {
-    lotteryType,
-    snapshot,
-    drawResult
+    ...buildExpectDetailResponse(snapshotRow, drawRow, computed),
+    rawSnapshot: toSnapshotRecord(snapshotRow)
   };
+}
+
+export async function refreshExpectComputeCacheForAccount(
+  env: Env,
+  account: string,
+  lotteryType: LotteryType,
+  expect: string
+): Promise<void> {
+  const snapshotRow = await getSnapshotRowForAccountExpect(env, account, lotteryType, expect);
+
+  if (!snapshotRow) {
+    return;
+  }
+
+  const drawRow = await getDrawRowForExpect(env, lotteryType, expect);
+  const computed = buildExpectDetailComputed(toSnapshotRecord(snapshotRow), drawRow ? toDrawRecord(drawRow) : null);
+  await upsertExpectComputeCache(env, snapshotRow, drawRow, computed);
+}
+
+export async function refreshExpectComputeCacheForExpect(env: Env, lotteryType: LotteryType, expect: string): Promise<void> {
+  const [snapshotRows, drawRow] = await Promise.all([listSnapshotRowsForExpect(env, lotteryType, expect), getDrawRowForExpect(env, lotteryType, expect)]);
+
+  for (const snapshotRow of snapshotRows) {
+    const computed = buildExpectDetailComputed(toSnapshotRecord(snapshotRow), drawRow ? toDrawRecord(drawRow) : null);
+    await upsertExpectComputeCache(env, snapshotRow, drawRow, computed);
+  }
 }
 
 export async function upsertSnapshot(env: Env, input: {

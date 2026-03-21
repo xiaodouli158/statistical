@@ -1,4 +1,4 @@
-import type { DrawResultRecord, LotteryType, SessionUser, SnapshotRecord, UserRecord } from "@statisticalsystem/shared";
+import type { DrawResultRecord, ExpectDetailComputed, LotteryType, SessionUser, SnapshotMeta, SnapshotRecord, UserRecord } from "@statisticalsystem/shared";
 import { isMembershipExpired } from "../utils/time";
 
 export type Env = {
@@ -38,6 +38,8 @@ export type SnapshotRow = {
   mail_subject: string | null;
   raw_body: string;
   message_chunks_json: string;
+  created_at: string;
+  updated_at: string;
 };
 
 export type DrawRow = {
@@ -51,6 +53,26 @@ export type DrawRow = {
   verify: number;
   source_payload: string;
   fetched_at: string;
+  created_at: string;
+  updated_at: string;
+};
+
+export type ExpectComputeCacheRow = {
+  account: string;
+  lottery_type: LotteryType;
+  expect: string;
+  parser_version: string;
+  snapshot_updated_at: string;
+  draw_updated_at: string | null;
+  compute_status: "parsed" | "settled";
+  order_count: number;
+  exception_count: number;
+  total_amount: number;
+  win_amount: number | null;
+  profit: number | null;
+  computed_json: string;
+  created_at: string;
+  updated_at: string;
 };
 
 export type SessionRow = {
@@ -88,6 +110,18 @@ export function toSnapshotRecord(row: SnapshotRow): SnapshotRecord {
   };
 }
 
+export function toSnapshotMeta(row: SnapshotRow): SnapshotMeta {
+  return {
+    id: row.id,
+    account: row.account,
+    lotteryType: row.lottery_type,
+    expect: row.expect,
+    receivedAt: row.received_at,
+    mailFrom: row.mail_from,
+    mailSubject: row.mail_subject
+  };
+}
+
 export function toDrawRecord(row: DrawRow): DrawResultRecord {
   return {
     lotteryType: row.lottery_type,
@@ -101,4 +135,8 @@ export function toDrawRecord(row: DrawRow): DrawResultRecord {
     sourcePayload: row.source_payload,
     fetchedAt: row.fetched_at
   };
+}
+
+export function toExpectDetailComputed(row: ExpectComputeCacheRow): ExpectDetailComputed {
+  return JSON.parse(row.computed_json) as ExpectDetailComputed;
 }

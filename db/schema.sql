@@ -32,6 +32,29 @@ CREATE TABLE IF NOT EXISTS expect_snapshots (
 CREATE INDEX IF NOT EXISTS idx_expect_snapshots_account_expect
 ON expect_snapshots(account, lottery_type, expect DESC);
 
+CREATE TABLE IF NOT EXISTS expect_compute_cache (
+  account TEXT NOT NULL,
+  lottery_type TEXT NOT NULL CHECK (lottery_type IN ('macau', 'hongkong')),
+  expect TEXT NOT NULL,
+  parser_version TEXT NOT NULL,
+  snapshot_updated_at TEXT NOT NULL,
+  draw_updated_at TEXT,
+  compute_status TEXT NOT NULL CHECK (compute_status IN ('parsed', 'settled')),
+  order_count INTEGER NOT NULL DEFAULT 0,
+  exception_count INTEGER NOT NULL DEFAULT 0,
+  total_amount REAL NOT NULL DEFAULT 0,
+  win_amount REAL,
+  profit REAL,
+  computed_json TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  PRIMARY KEY (account, lottery_type, expect),
+  FOREIGN KEY(account, lottery_type, expect) REFERENCES expect_snapshots(account, lottery_type, expect)
+);
+
+CREATE INDEX IF NOT EXISTS idx_expect_compute_cache_account_expect
+ON expect_compute_cache(account, lottery_type, expect DESC);
+
 CREATE TABLE IF NOT EXISTS draw_results (
   lottery_type TEXT NOT NULL CHECK (lottery_type IN ('macau', 'hongkong')),
   expect TEXT NOT NULL,

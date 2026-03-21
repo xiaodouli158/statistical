@@ -1,7 +1,7 @@
 import PostalMime from "postal-mime";
 import type { LotteryType } from "@statisticalsystem/shared";
 import type { Env } from "../db/types";
-import { getActiveMailUserBySender, upsertSnapshot } from "../db/queries";
+import { getActiveMailUserBySender, refreshExpectComputeCacheForAccount, upsertSnapshot } from "../db/queries";
 import { normalizeEmailAddress } from "../utils/strings";
 import { cleanMailBody } from "./clean";
 import { detectExpect } from "./detect-expect";
@@ -78,4 +78,15 @@ export async function handleEmail(message: ForwardableEmailMessage, env: Env): P
     rawBody: body,
     messageChunks
   });
+
+  try {
+    await refreshExpectComputeCacheForAccount(env, user.account, lotteryType, expect);
+  } catch (error) {
+    console.error("refreshExpectComputeCacheForAccount failed", {
+      account: user.account,
+      lotteryType,
+      expect,
+      error
+    });
+  }
 }

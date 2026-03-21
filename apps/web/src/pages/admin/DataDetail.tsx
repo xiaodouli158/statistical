@@ -77,7 +77,7 @@ export function AdminDataDetailPage() {
       ) : (
         <ExpectDetailContent data={data}>
           <Panel title="管理员原始数据">
-            <pre className="code-block">{JSON.stringify({ snapshot: data.snapshot, drawResult: data.drawResult }, null, 2)}</pre>
+            <pre className="code-block">{JSON.stringify({ snapshot: data.rawSnapshot, drawResult: data.drawResult }, null, 2)}</pre>
           </Panel>
         </ExpectDetailContent>
       )}

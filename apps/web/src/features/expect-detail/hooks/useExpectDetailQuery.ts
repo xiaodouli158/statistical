@@ -1,9 +1,8 @@
 import { useEffect, useState } from "react";
-import type { ExpectDetailResponse } from "@statisticalsystem/shared";
 
-export function useExpectDetailQuery(queryKey: string, loadDetail: () => Promise<ExpectDetailResponse>) {
+export function useExpectDetailQuery<T>(queryKey: string, loadDetail: () => Promise<T>) {
   const [state, setState] = useState<{
-    data: ExpectDetailResponse | null;
+    data: T | null;
     loading: boolean;
     error: string | null;
   }>({

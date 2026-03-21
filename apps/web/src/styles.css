@@ -435,6 +435,103 @@ select {
   background: rgba(255, 250, 241, 0.96);
 }
 
+.panel-note {
+  margin: 0;
+  color: #64756c;
+  line-height: 1.6;
+}
+
+.order-table__summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 14px;
+  font-size: 13px;
+  color: #64756c;
+}
+
+.order-table__summary-text.is-pending {
+  color: #204d3f;
+}
+
+.order-table {
+  min-width: 980px;
+  border: 1px solid rgba(70, 82, 70, 0.12);
+  border-radius: 18px;
+  overflow: hidden;
+  background: rgba(255, 250, 241, 0.6);
+}
+
+.order-table__header,
+.order-table__row {
+  display: grid;
+  grid-template-columns: 72px 110px minmax(280px, 2.4fr) 72px 88px 96px 110px 110px;
+  align-items: center;
+}
+
+.order-table__header {
+  background: rgba(255, 250, 241, 0.96);
+  border-bottom: 1px solid rgba(70, 82, 70, 0.1);
+}
+
+.order-table__viewport {
+  overflow-y: auto;
+}
+
+.order-table__spacer {
+  position: relative;
+}
+
+.order-table__window {
+  position: absolute;
+  inset: 0 0 auto;
+}
+
+.order-table__row {
+  border-bottom: 1px solid rgba(70, 82, 70, 0.1);
+  cursor: pointer;
+}
+
+.order-table__row:hover {
+  background: rgba(245, 238, 225, 0.72);
+}
+
+.order-table__row:focus-visible {
+  outline: 2px solid rgba(32, 77, 63, 0.35);
+  outline-offset: -2px;
+}
+
+.order-table__cell {
+  min-width: 0;
+  padding: 12px 14px;
+}
+
+.order-table__cell--header {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.order-table__cell--content {
+  white-space: normal;
+}
+
+.order-table__content {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  line-height: 1.35;
+}
+
+.order-table__empty {
+  display: grid;
+  min-height: 180px;
+  place-items: center;
+  color: #64756c;
+}
+
 .center-panel {
   display: grid;
   min-height: 100vh;
@@ -782,6 +879,15 @@ select {
   .draw-strip-wrap,
   .draw-strip {
     justify-content: flex-start;
+  }
+
+  .order-table {
+    min-width: 900px;
+  }
+
+  .order-table__header,
+  .order-table__row {
+    grid-template-columns: 64px 100px minmax(240px, 2fr) 64px 84px 92px 104px 104px;
   }
 }
 

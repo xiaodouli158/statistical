@@ -6,7 +6,7 @@ import {
   type LotteryType
 } from "@statisticalsystem/shared";
 import { normalizeZodiacName } from "@statisticalsystem/parser";
-import { upsertDrawResult } from "../db/queries";
+import { refreshExpectComputeCacheForExpect, upsertDrawResult } from "../db/queries";
 import type { Env } from "../db/types";
 import { formatNowIso, getActiveLotteries, getBeijingWindowStatus, isCurrentDrawResult } from "../utils/time";
 
@@ -149,6 +149,16 @@ export async function syncDrawsOnce(
       sourcePayload: payload,
       fetchedAt: formatNowIso()
     });
+
+    try {
+      await refreshExpectComputeCacheForExpect(env, lotteryType, draw.expect);
+    } catch (error) {
+      console.error("refreshExpectComputeCacheForExpect failed", {
+        lotteryType,
+        expect: draw.expect,
+        error
+      });
+    }
 
     result[lotteryType] = draw;
   }

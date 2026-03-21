@@ -1,0 +1,19 @@
+{
+  "javascript.validate.enable": false,
+  "js/ts.implicitProjectConfig.checkJs": false,
+  "files.exclude": {
+    "**/.wrangler": true,
+    "**/.wrangler-build": true,
+    "**/dist": true
+  },
+  "search.exclude": {
+    "**/.wrangler": true,
+    "**/.wrangler-build": true,
+    "**/dist": true
+  },
+  "typescript.preferences.autoImportFileExcludePatterns": [
+    "**/.wrangler/**",
+    "**/.wrangler-build/**",
+    "**/dist/**"
+  ]
+}

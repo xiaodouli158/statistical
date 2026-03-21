@@ -1,7 +1,14 @@
-import { useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { HitStatus, SettledOrder } from "@statisticalsystem/parser";
 import { Panel } from "../../../components/Panel";
 import { formatCurrency, formatSignedCurrency } from "../../../utils/format";
+
+const ORDER_ROW_HEIGHT = 76;
+const ORDER_ROW_OVERSCAN = 6;
+const ORDER_VIEWPORT_ROW_COUNT = 8;
+const ORDER_VIEWPORT_MIN_ROWS = 3;
+
+const COLUMN_HEADERS = ["订单号", "玩法", "订单内容", "注数", "单价", "金额", "中奖情况", "庄家盈亏"] as const;
 
 function hitStatusLabel(status: HitStatus): string {
   switch (status) {
@@ -24,6 +31,7 @@ type OrderTableProps = {
   onKeywordChange: (value: string) => void;
   filter: "all" | "win" | "lose";
   onFilterChange: (value: "all" | "win" | "lose") => void;
+  isFiltering?: boolean;
 };
 
 function houseProfitClassName(order: SettledOrder): string {
@@ -58,9 +66,49 @@ function hitValueSet(order: SettledOrder): Set<string> {
   return new Set(order.hitValues);
 }
 
-export function OrderTable({ orders, keyword, onKeywordChange, filter, onFilterChange }: OrderTableProps) {
+export function OrderTable({ orders, keyword, onKeywordChange, filter, onFilterChange, isFiltering = false }: OrderTableProps) {
   const [selectedOrder, setSelectedOrder] = useState<SettledOrder | null>(null);
+  const [scrollTop, setScrollTop] = useState(0);
+  const viewportRef = useRef<HTMLDivElement | null>(null);
   const selectedHitValues = selectedOrder ? hitValueSet(selectedOrder) : null;
+  const viewportHeight = Math.min(Math.max(orders.length, ORDER_VIEWPORT_MIN_ROWS), ORDER_VIEWPORT_ROW_COUNT) * ORDER_ROW_HEIGHT;
+  const totalHeight = orders.length * ORDER_ROW_HEIGHT;
+
+  const visibleRange = useMemo(() => {
+    if (orders.length === 0) {
+      return {
+        startIndex: 0,
+        endIndex: 0,
+        offsetTop: 0,
+        items: [] as SettledOrder[]
+      };
+    }
+
+    const startIndex = Math.max(0, Math.floor(scrollTop / ORDER_ROW_HEIGHT) - ORDER_ROW_OVERSCAN);
+    const endIndex = Math.min(orders.length, Math.ceil((scrollTop + viewportHeight) / ORDER_ROW_HEIGHT) + ORDER_ROW_OVERSCAN);
+
+    return {
+      startIndex,
+      endIndex,
+      offsetTop: startIndex * ORDER_ROW_HEIGHT,
+      items: orders.slice(startIndex, endIndex)
+    };
+  }, [orders, scrollTop, viewportHeight]);
+
+  useEffect(() => {
+    viewportRef.current?.scrollTo({ top: 0 });
+    setScrollTop(0);
+  }, [orders]);
+
+  useEffect(() => {
+    if (!selectedOrder) {
+      return;
+    }
+
+    if (!orders.some((order) => order.id === selectedOrder.id)) {
+      setSelectedOrder(null);
+    }
+  }, [orders, selectedOrder]);
 
   return (
     <>
@@ -82,49 +130,70 @@ export function OrderTable({ orders, keyword, onKeywordChange, filter, onFilterC
           </div>
         }
       >
+        <div className="order-table__summary">
+          <span>共 {orders.length} 单</span>
+          <span className={isFiltering ? "order-table__summary-text is-pending" : "order-table__summary-text"}>
+            {isFiltering
+              ? "正在更新筛选结果..."
+              : orders.length === 0
+                ? "暂无匹配订单"
+                : `窗口渲染 ${visibleRange.startIndex + 1}-${visibleRange.endIndex} / ${orders.length}`}
+          </span>
+        </div>
+
         <div className="table-wrap">
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>订单号</th>
-                <th>玩法</th>
-                <th>订单内容</th>
-                <th>注数</th>
-                <th>单价</th>
-                <th>金额</th>
-                <th>中奖情况</th>
-                <th>庄家盈亏</th>
-              </tr>
-            </thead>
-            <tbody>
-              {orders.map((order) => (
-                <tr
-                  className="data-table__row is-clickable"
-                  key={order.id}
-                  onClick={() => setSelectedOrder(order)}
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter" || event.key === " ") {
-                      event.preventDefault();
-                      setSelectedOrder(order);
-                    }
-                  }}
-                  role="button"
-                  tabIndex={0}
-                >
-                  <td>{order.orderNo}</td>
-                  <td>{order.playType}</td>
-                  <td className="data-table__content-cell">
-                    <span className="order-preview__text">{orderPreviewText(order)}</span>
-                  </td>
-                  <td>{order.betCount}</td>
-                  <td>{formatCurrency(order.unitPrice)}</td>
-                  <td>{formatCurrency(order.amount)}</td>
-                  <td>{hitStatusLabel(order.hitStatus)}</td>
-                  <td className={houseProfitClassName(order)}>{houseProfitLabel(order)}</td>
-                </tr>
+          <div className="order-table" aria-label="订单明细">
+            <div className="order-table__header">
+              {COLUMN_HEADERS.map((title) => (
+                <div className="order-table__cell order-table__cell--header" key={title}>
+                  {title}
+                </div>
               ))}
-            </tbody>
-          </table>
+            </div>
+
+            <div
+              className="order-table__viewport"
+              onScroll={(event) => setScrollTop(event.currentTarget.scrollTop)}
+              ref={viewportRef}
+              style={{ height: `${viewportHeight}px` }}
+            >
+              {orders.length === 0 ? (
+                <div className="order-table__empty">暂无匹配订单</div>
+              ) : (
+                <div className="order-table__spacer" style={{ height: `${totalHeight}px` }}>
+                  <div className="order-table__window" style={{ transform: `translateY(${visibleRange.offsetTop}px)` }}>
+                    {visibleRange.items.map((order) => (
+                      <div
+                        className="order-table__row"
+                        key={order.id}
+                        onClick={() => setSelectedOrder(order)}
+                        onKeyDown={(event) => {
+                          if (event.key === "Enter" || event.key === " ") {
+                            event.preventDefault();
+                            setSelectedOrder(order);
+                          }
+                        }}
+                        role="button"
+                        style={{ height: `${ORDER_ROW_HEIGHT}px` }}
+                        tabIndex={0}
+                      >
+                        <div className="order-table__cell">{order.orderNo}</div>
+                        <div className="order-table__cell">{order.playType}</div>
+                        <div className="order-table__cell order-table__cell--content">
+                          <span className="order-preview__text order-table__content">{orderPreviewText(order)}</span>
+                        </div>
+                        <div className="order-table__cell">{order.betCount}</div>
+                        <div className="order-table__cell">{formatCurrency(order.unitPrice)}</div>
+                        <div className="order-table__cell">{formatCurrency(order.amount)}</div>
+                        <div className="order-table__cell">{hitStatusLabel(order.hitStatus)}</div>
+                        <div className={`order-table__cell ${houseProfitClassName(order)}`}>{houseProfitLabel(order)}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       </Panel>
 

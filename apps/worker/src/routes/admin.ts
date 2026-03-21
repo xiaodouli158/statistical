@@ -3,7 +3,7 @@ import { normalizeLotteryType, type LoginRequest, type LoginResponse, type Upser
 import { clearSession, persistSession, requireAuth } from "../auth/guard";
 import { hashPassword, verifyPassword } from "../auth/password";
 import { generateSessionToken, sha256 } from "../auth/session";
-import { createUser, getAdminData, getExpectDetail, getUserByUsername, listExpectsForAccount, listUsers, updateUser } from "../db/queries";
+import { createUser, getAdminData, getAdminExpectDetail, getUserByUsername, listExpectsForAccount, listUsers, updateUser } from "../db/queries";
 import type { AppVariables, Env } from "../db/types";
 import { syncDrawOnce } from "../draw/fetch";
 
@@ -142,7 +142,7 @@ adminRoutes.get("/data/expects/:expect", requireAuth("admin"), async (c) => {
     return c.json({ error: "缺少编号" }, 400);
   }
 
-  const detail = await getExpectDetail(c.env, account, lotteryType, c.req.param("expect"));
+  const detail = await getAdminExpectDetail(c.env, account, lotteryType, c.req.param("expect"));
 
   if (!detail) {
     return c.json({ error: "数据不存在" }, 404);

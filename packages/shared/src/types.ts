@@ -26,6 +26,16 @@ export type SnapshotRecord = {
   messageChunks: string[];
 };
 
+export type SnapshotMeta = {
+  id: string;
+  account: string;
+  lotteryType: LotteryType;
+  expect: string;
+  receivedAt: string;
+  mailFrom: string | null;
+  mailSubject: string | null;
+};
+
 export type DrawResultRecord = {
   lotteryType: LotteryType;
   expect: string;
@@ -37,6 +47,77 @@ export type DrawResultRecord = {
   verify: boolean;
   sourcePayload?: string;
   fetchedAt?: string;
+};
+
+export type Marker = string;
+
+export type ParsedOrderType = "number" | "zodiac" | "tail";
+
+export type ParsedOrderStatus = "ok";
+
+export type PlayType = "特码直投" | "平特" | "平特尾数";
+
+export type HitStatus = "pending" | "win" | "lose" | "partial" | "review";
+
+export type ParsedOrder = {
+  id: string;
+  orderNo: number;
+  raw: string;
+  sourceContent: string;
+  content: string;
+  marker: Marker;
+  priceRaw: string | null;
+  betCount: number;
+  unitPrice: number;
+  amount: number;
+  odds: number;
+  values: string[];
+  zodiacs: ZodiacName[];
+  tails: string[];
+  playType: PlayType;
+  type: ParsedOrderType;
+  status: ParsedOrderStatus;
+};
+
+export type OrderException = {
+  id: string;
+  raw: string;
+  sourceChunk: string;
+  reason: string;
+};
+
+export type SettledOrder = ParsedOrder & {
+  hitStatus: HitStatus;
+  hitValues: string[];
+  hitNumbers: string[];
+  hitZodiacs: ZodiacName[];
+  hitTails: string[];
+  payout: number;
+  houseProfit: number | null;
+};
+
+export type SummaryMetrics = {
+  orderCount: number;
+  winOrderCount: number | null;
+  loseOrderCount: number | null;
+  winAmount: number | null;
+  totalAmount: number;
+  profit: number | null;
+};
+
+export type NumberBarItem = {
+  number: string;
+  amount: number;
+  isDrawn: boolean;
+  wave: WaveColor | null;
+  zodiac: ZodiacName | null;
+};
+
+export type ExpectDetailComputed = {
+  settledOrders: SettledOrder[];
+  orderExceptions: OrderException[];
+  summary: SummaryMetrics;
+  numberBarsBase: NumberBarItem[];
 };
 
 export type UserRecord = {
@@ -77,10 +158,17 @@ export type UserExpectListItem = {
   hasDrawResult: boolean;
 };
 
-export type ExpectDetailResponse = {
+export type ExpectDetailViewResponse = {
   lotteryType: LotteryType;
-  snapshot: SnapshotRecord;
+  snapshot: SnapshotMeta;
   drawResult: DrawResultRecord | null;
+  computed: ExpectDetailComputed;
+};
+
+export type ExpectDetailResponse = ExpectDetailViewResponse;
+
+export type AdminExpectDetailResponse = ExpectDetailViewResponse & {
+  rawSnapshot: SnapshotRecord;
 };
 
 export type AdminDataResponse = {
