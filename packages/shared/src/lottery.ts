@@ -4,8 +4,8 @@ import type { LotteryType } from "./types";
 export const DEFAULT_LOTTERY_TYPE: LotteryType = "macau";
 
 export const LOTTERY_LABELS: Record<LotteryType, string> = {
-  macau: "新澳门彩",
-  hongkong: "香港彩"
+  macau: "新澳门",
+  hongkong: "香港"
 };
 
 export const LOTTERY_API_KEYS: Record<LotteryType, string> = {
