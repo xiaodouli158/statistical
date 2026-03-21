@@ -1,6 +1,6 @@
 import type { DrawResultRecord, NumberSortMode, OrderFilter, WaveColor, ZodiacName } from "@statisticalsystem/shared";
 
-export type Marker = "各数" | "各个" | "各号" | "///" | "---" | "//" | "--" | "各" | "/" | "-";
+export type Marker = string;
 
 export type ParsedOrderType = "number" | "zodiac" | "tail";
 

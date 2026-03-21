@@ -1,5 +1,7 @@
 export function normalizeChunk(input: string): string {
   return input
+    .replace(/&nbsp;/gi, " ")
+    .replace(/&quot;/gi, "\"")
     .replace(/[，、]/g, ",")
     .replace(/[；;]/g, ";")
     .replace(/[：:]/g, ":")

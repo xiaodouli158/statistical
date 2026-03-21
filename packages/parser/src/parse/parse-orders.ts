@@ -9,6 +9,19 @@ import { extractZodiacs, getNumbersForZodiac } from "../utils/zodiac";
 const PRICE_UNIT_PATTERN = /(米|元|块|塊|斤)$/;
 const SEPARATOR_PATTERN = /[\s,，、。.;；]+/;
 const CHINESE_NUMBER_PATTERN = /[零一二两三四五六七八九十百千]/;
+const SLASH_MARKER_PATTERN = /\/+/g;
+const ZODIAC_TEMA_MARKERS = new Set<Marker>(["各数", "各号"]);
+const IGNORED_CHUNK_PATTERNS = [
+  /^Dear:?$/i,
+  /^微信群.*聊天记录如下:?$/,
+  /^\d{4}-\d{1,2}-\d{1,2}$/,
+  /^\d{4}-\d{1,2}-\d{1,2}\s+\d{2}:\d{2}(:\d{2})?$/,
+  /^[^:]{1,40}\s+\d{2}:\d{2}(:\d{2})?$/,
+  /^[^:]{1,40}\s+\d{4}-\d{1,2}-\d{1,2}\s+\d{2}:\d{2}(:\d{2})?$/,
+  /^[-=—_]{3,}$/,
+  /^[-=—_\s]*\d{4}-\d{1,2}-\d{1,2}[-=—_\s]*$/,
+  /^[-—]\d{1,4}$/
+];
 const PLAY_TYPE_PREFIXES: Array<{ prefix: string; playType: PlayType }> = [
   { prefix: "平特尾数", playType: "平特尾数" },
   { prefix: "平特尾", playType: "平特尾数" },
@@ -77,6 +90,16 @@ function findMarker(input: string, fromIndex = 0): { marker: Marker; index: numb
     if (!result || index < result.index || (index === result.index && marker.length > result.marker.length)) {
       result = { marker, index };
     }
+  }
+
+  SLASH_MARKER_PATTERN.lastIndex = fromIndex;
+  const slashMatch = SLASH_MARKER_PATTERN.exec(input);
+
+  if (
+    slashMatch &&
+    (!result || slashMatch.index < result.index || (slashMatch.index === result.index && slashMatch[0].length > result.marker.length))
+  ) {
+    result = { marker: slashMatch[0], index: slashMatch.index };
   }
 
   return result;
@@ -251,12 +274,25 @@ function buildOrderId(orderNo: number, playType: PlayType, values: string[]): st
   return `${orderNo}-${playType}-${values.join("-") || "raw"}`;
 }
 
+function shouldIgnoreChunk(chunk: string): boolean {
+  return IGNORED_CHUNK_PATTERNS.some((pattern) => pattern.test(chunk));
+}
+
+function isSlashMarker(marker: Marker): boolean {
+  return /^\/+$/.test(marker);
+}
+
+function isTemaZodiacMarker(marker: Marker): boolean {
+  return ZODIAC_TEMA_MARKERS.has(marker);
+}
+
 function parseTemaDirectOrder(
   candidate: string,
   sourceChunk: string,
   orderNo: number,
   rawSubject: string,
   subject: string,
+  marker: Marker,
   pricePart: string,
   referenceDate: string | null | undefined,
   oddsConfig: OddsConfigInput | undefined
@@ -269,6 +305,14 @@ function parseTemaDirectOrder(
 
   if (values.length === 0) {
     return buildException(candidate, sourceChunk, "未识别到号码或生肖", orderNo);
+  }
+
+  if (zodiacs.length > 0 && !isTemaZodiacMarker(marker)) {
+    return buildException(candidate, sourceChunk, "特码直投生肖下注需使用各数或各号", orderNo);
+  }
+
+  if (zodiacs.length === 0 && marker !== "各数" && marker !== "各" && marker !== "各个" && marker !== "各号" && !isSlashMarker(marker)) {
+    return buildException(candidate, sourceChunk, "未识别到下注金额标记", orderNo);
   }
 
   if (unitPrice <= 0) {
@@ -285,7 +329,7 @@ function parseTemaDirectOrder(
     raw: candidate,
     sourceContent: rawSubject || candidate,
     content,
-    marker: findMarker(candidate)?.marker ?? "各",
+    marker,
     priceRaw,
     betCount,
     unitPrice,
@@ -306,6 +350,7 @@ function parsePingteOrder(
   orderNo: number,
   rawSubject: string,
   subject: string,
+  marker: Marker,
   pricePart: string,
   oddsConfig: OddsConfigInput | undefined
 ): ParsedOrder | OrderException {
@@ -329,7 +374,7 @@ function parsePingteOrder(
     raw: candidate,
     sourceContent: rawSubject || candidate,
     content: buildZodiacList(zodiacs),
-    marker: findMarker(candidate)?.marker ?? "各",
+    marker,
     priceRaw,
     betCount: zodiacs.length,
     unitPrice,
@@ -350,6 +395,7 @@ function parsePingteTailOrder(
   orderNo: number,
   rawSubject: string,
   subject: string,
+  marker: Marker,
   pricePart: string,
   oddsConfig: OddsConfigInput | undefined
 ): ParsedOrder | OrderException {
@@ -373,7 +419,7 @@ function parsePingteTailOrder(
     raw: candidate,
     sourceContent: rawSubject || candidate,
     content: buildTailContent(tails),
-    marker: findMarker(candidate)?.marker ?? "各",
+    marker,
     priceRaw,
     betCount: tails.length,
     unitPrice,
@@ -411,12 +457,12 @@ function parseCandidate(
 
   switch (playType) {
     case "平特":
-      return parsePingteOrder(candidate, sourceChunk, orderNo, rawSubject, subject, pricePart, oddsConfig);
+      return parsePingteOrder(candidate, sourceChunk, orderNo, rawSubject, subject, markerMatch.marker, pricePart, oddsConfig);
     case "平特尾数":
-      return parsePingteTailOrder(candidate, sourceChunk, orderNo, rawSubject, subject, pricePart, oddsConfig);
+      return parsePingteTailOrder(candidate, sourceChunk, orderNo, rawSubject, subject, markerMatch.marker, pricePart, oddsConfig);
     case "特码直投":
     default:
-      return parseTemaDirectOrder(candidate, sourceChunk, orderNo, rawSubject, subject, pricePart, referenceDate, oddsConfig);
+      return parseTemaDirectOrder(candidate, sourceChunk, orderNo, rawSubject, subject, markerMatch.marker, pricePart, referenceDate, oddsConfig);
   }
 }
 
@@ -426,6 +472,11 @@ export function parseOrders(messageChunks: string[], referenceDate?: string | nu
 
   for (const chunk of messageChunks) {
     const sourceChunk = normalizeChunk(chunk);
+
+    if (!sourceChunk || shouldIgnoreChunk(sourceChunk)) {
+      continue;
+    }
+
     const candidates = splitCandidates(chunk);
 
     for (const candidate of candidates) {

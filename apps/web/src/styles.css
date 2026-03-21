@@ -525,6 +525,34 @@ select {
   gap: 6px;
 }
 
+.help-panel__example {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0;
+  width: fit-content;
+  max-width: 100%;
+  padding: 8px 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(71, 91, 79, 0.12);
+  background: rgba(255, 250, 241, 0.92);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.45);
+  font-family: "JetBrains Mono", "Consolas", "Noto Sans SC", monospace;
+  font-size: 14px;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+
+.help-panel__segment--play-type {
+  color: #17804f;
+  font-weight: 700;
+}
+
+.help-panel__segment--marker {
+  color: #cb4747;
+  font-weight: 700;
+}
+
 .amount-text--positive {
   color: #17804f;
   font-weight: 700;
