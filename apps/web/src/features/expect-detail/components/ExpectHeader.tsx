@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
-import { LOTTERY_LABELS, type LotteryType } from "@statisticalsystem/shared";
+import { BUSINESS_DAY_START_HOUR, HONGKONG_DRAW_WEEKDAYS, LOTTERY_LABELS, type LotteryType } from "@statisticalsystem/shared";
 import type { NormalizedDrawResult } from "@statisticalsystem/parser";
 import { Panel } from "../../../components/Panel";
 import { formatDateTime } from "../../../utils/format";
 
 const SHANGHAI_OFFSET_MS = 8 * 60 * 60 * 1000;
+const ONE_DAY_MS = 24 * 60 * 60 * 1000;
 const DRAW_OPEN_HOUR = 21;
 const DRAW_OPEN_MINUTE = 30;
 
@@ -15,24 +16,41 @@ type ExpectHeaderProps = {
   drawResult: NormalizedDrawResult | null;
 };
 
-function getDrawOpenTimestamp(receivedAt: string): number | null {
+function getShanghaiBusinessDateStart(receivedAtMs: number): number {
+  const shanghaiDate = new Date(receivedAtMs + SHANGHAI_OFFSET_MS);
+  const shanghaiMidnightUtc =
+    Date.UTC(shanghaiDate.getUTCFullYear(), shanghaiDate.getUTCMonth(), shanghaiDate.getUTCDate(), 0, 0, 0, 0) - SHANGHAI_OFFSET_MS;
+
+  return shanghaiDate.getUTCHours() < BUSINESS_DAY_START_HOUR ? shanghaiMidnightUtc - ONE_DAY_MS : shanghaiMidnightUtc;
+}
+
+function isHongkongDrawDate(dateStartMs: number): boolean {
+  const shanghaiDate = new Date(dateStartMs + SHANGHAI_OFFSET_MS);
+  return HONGKONG_DRAW_WEEKDAYS.includes(shanghaiDate.getUTCDay() as (typeof HONGKONG_DRAW_WEEKDAYS)[number]);
+}
+
+function getDrawDateStart(lotteryType: LotteryType, receivedAtMs: number): number {
+  if (lotteryType === "macau") {
+    return getShanghaiBusinessDateStart(receivedAtMs);
+  }
+
+  let cursor = getShanghaiBusinessDateStart(receivedAtMs);
+
+  while (!isHongkongDrawDate(cursor)) {
+    cursor += ONE_DAY_MS;
+  }
+
+  return cursor;
+}
+
+function getDrawOpenTimestamp(lotteryType: LotteryType, receivedAt: string): number | null {
   const receivedAtMs = Date.parse(receivedAt);
 
   if (Number.isNaN(receivedAtMs)) {
     return null;
   }
 
-  const shanghaiDate = new Date(receivedAtMs + SHANGHAI_OFFSET_MS);
-
-  return Date.UTC(
-    shanghaiDate.getUTCFullYear(),
-    shanghaiDate.getUTCMonth(),
-    shanghaiDate.getUTCDate(),
-    DRAW_OPEN_HOUR - 8,
-    DRAW_OPEN_MINUTE,
-    0,
-    0
-  );
+  return getDrawDateStart(lotteryType, receivedAtMs) + (DRAW_OPEN_HOUR * 60 + DRAW_OPEN_MINUTE) * 60 * 1000;
 }
 
 function formatCountdown(remainingMs: number): string {
@@ -46,7 +64,7 @@ function formatCountdown(remainingMs: number): string {
 
 export function ExpectHeader({ lotteryType, expect, receivedAt, drawResult }: ExpectHeaderProps) {
   const [nowMs, setNowMs] = useState(() => Date.now());
-  const drawOpenTimestamp = useMemo(() => getDrawOpenTimestamp(receivedAt), [receivedAt]);
+  const drawOpenTimestamp = useMemo(() => getDrawOpenTimestamp(lotteryType, receivedAt), [lotteryType, receivedAt]);
   const drawTimeText = useMemo(() => {
     if (drawResult) {
       return formatDateTime(drawResult.openTime);
