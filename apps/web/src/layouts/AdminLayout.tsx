@@ -4,7 +4,7 @@ import { getAdminMe, logoutAdmin } from "../services/admin";
 
 export function AdminLayout() {
   const navigate = useNavigate();
-  const [username, setUsername] = useState<string>("");
+  const [username, setUsername] = useState("");
 
   useEffect(() => {
     let mounted = true;
@@ -35,13 +35,16 @@ export function AdminLayout() {
     navigate("/admin/login", { replace: true });
   }
 
-  const brandLabel = username ? `管理端（${username}）` : "管理端";
-
   return (
     <div className="shell">
       <aside className="shell__sidebar">
         <div className="brand">
-          <span className="brand__eyebrow brand__account">{brandLabel}</span>
+          <div className="brand__account-row">
+            <span className="brand__eyebrow brand__account">{username || "未登录"}</span>
+            <button className="ghost-button ghost-button--sidebar-compact" type="button" onClick={handleLogout}>
+              退出登录
+            </button>
+          </div>
           <strong>StatisticalSystem</strong>
         </div>
         <nav className="nav-list">
@@ -52,9 +55,6 @@ export function AdminLayout() {
             数据查看
           </NavLink>
         </nav>
-        <button className="ghost-button ghost-button--full" type="button" onClick={handleLogout}>
-          退出登录
-        </button>
       </aside>
       <main className="shell__content">
         <Outlet />

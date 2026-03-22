@@ -58,6 +58,13 @@ select {
   gap: 4px;
 }
 
+.brand__account-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
 .brand__switch {
   margin-top: 8px;
 }
@@ -72,6 +79,7 @@ select {
 
 .brand__account {
   display: block;
+  flex: 1 1 auto;
   line-height: 1.5;
   overflow-wrap: anywhere;
 }
@@ -581,8 +589,13 @@ select {
   color: #18392e;
 }
 
-.ghost-button--full {
-  width: 100%;
+.ghost-button--sidebar-compact {
+  flex: 0 0 auto;
+  min-height: 30px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  line-height: 1;
 }
 
 .shell__sidebar .ghost-button {

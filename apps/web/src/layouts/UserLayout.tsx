@@ -8,7 +8,7 @@ import { getUserMe, logoutUser } from "../services/user";
 export function UserLayout() {
   const navigate = useNavigate();
   const { lotteryType, lotterySearch, setLotteryType } = useLotteryType();
-  const [username, setUsername] = useState<string>("");
+  const [username, setUsername] = useState("");
 
   useEffect(() => {
     let mounted = true;
@@ -39,13 +39,16 @@ export function UserLayout() {
     navigate("/login", { replace: true });
   }
 
-  const brandLabel = username ? `用户端（${username}）` : "用户端";
-
   return (
     <div className="shell">
       <aside className="shell__sidebar">
         <div className="brand">
-          <span className="brand__eyebrow brand__account">{brandLabel}</span>
+          <div className="brand__account-row">
+            <span className="brand__eyebrow brand__account">{username || "未登录"}</span>
+            <button className="ghost-button ghost-button--sidebar-compact" type="button" onClick={handleLogout}>
+              退出登录
+            </button>
+          </div>
           <strong>StatisticalSystem</strong>
           <div className="brand__switch">
             <SegmentedControl<LotteryType>
@@ -68,9 +71,6 @@ export function UserLayout() {
             投注帮助
           </NavLink>
         </nav>
-        <button className="ghost-button ghost-button--full" type="button" onClick={handleLogout}>
-          退出登录
-        </button>
       </aside>
       <main className="shell__content">
         <Outlet />

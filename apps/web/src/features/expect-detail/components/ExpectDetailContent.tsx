@@ -1,14 +1,12 @@
-import { useDeferredValue, useMemo, useState, useTransition, type PropsWithChildren } from "react";
+import { useDeferredValue, useMemo, useState, type PropsWithChildren } from "react";
 import { normalizeDrawResult } from "@statisticalsystem/parser";
-import type { ExpectDetailViewResponse, NumberSortMode, OrderFilter } from "@statisticalsystem/shared";
-import { Panel } from "../../../components/Panel";
+import type { AdminExpectDetailResponse, ExpectDetailViewResponse, NumberSortMode, OrderFilter } from "@statisticalsystem/shared";
 import { sortNumberBars } from "../../../utils/charts";
 import { BarChartPanel } from "./BarChartPanel";
 import { ExpectHeader } from "./ExpectHeader";
 import { OrderExceptionList } from "./OrderExceptionList";
 import { OrderTable } from "./OrderTable";
 import { SummaryCards } from "./SummaryCards";
-import { useExpectDetailComputed } from "../hooks/useExpectDetailComputed";
 
 const WAVE_ACCENTS: Record<string, string> = {
   red: "linear-gradient(180deg, #ff9972 0%, #d9485a 100%)",
@@ -17,18 +15,16 @@ const WAVE_ACCENTS: Record<string, string> = {
 };
 
 type ExpectDetailContentProps = PropsWithChildren<{
-  data: ExpectDetailViewResponse;
+  data: ExpectDetailViewResponse | AdminExpectDetailResponse;
 }>;
 
 export function ExpectDetailContent({ data, children }: ExpectDetailContentProps) {
-  const { computed, computing, ready } = useExpectDetailComputed(data);
+  const computed = data.computed;
   const [orderKeyword, setOrderKeyword] = useState("");
   const [orderFilter, setOrderFilter] = useState<OrderFilter>("all");
   const [numberSortMode, setNumberSortMode] = useState<NumberSortMode>("natural");
-  const [isFilterPending, startFilterTransition] = useTransition();
   const deferredOrderKeyword = useDeferredValue(orderKeyword);
   const headerDrawResult = useMemo(() => normalizeDrawResult(data.drawResult), [data.drawResult]);
-  const hasComputedContent = computed.settledOrders.length > 0 || computed.orderExceptions.length > 0 || computed.numberBarsBase.length > 0;
 
   const visibleOrders = useMemo(() => {
     const keyword = deferredOrderKeyword.trim();
@@ -45,7 +41,7 @@ export function ExpectDetailContent({ data, children }: ExpectDetailContentProps
   }, [computed.settledOrders, deferredOrderKeyword, orderFilter]);
 
   const visibleNumberBars = useMemo(() => sortNumberBars(computed.numberBarsBase, numberSortMode), [computed.numberBarsBase, numberSortMode]);
-  const isFiltering = orderKeyword !== deferredOrderKeyword || isFilterPending;
+  const isFiltering = orderKeyword !== deferredOrderKeyword;
 
   return (
     <div className="page-stack">
@@ -55,41 +51,29 @@ export function ExpectDetailContent({ data, children }: ExpectDetailContentProps
         receivedAt={data.snapshot.receivedAt}
         drawResult={headerDrawResult}
       />
-      {!ready && !hasComputedContent ? (
-        <Panel title="正在计算">
-          <p className="panel-note">正在解析订单、结算结果并准备图表数据。</p>
-        </Panel>
-      ) : (
-        <>
-          <SummaryCards summary={computed.summary} />
-          <BarChartPanel
-            title="特码柱状图"
-            items={visibleNumberBars.map((item) => ({
-              key: item.number,
-              label: item.number,
-              sublabel: item.zodiac,
-              amount: item.amount,
-              accent: item.isDrawn ? WAVE_ACCENTS[item.wave ?? "blue"] : undefined,
-              highlighted: item.isDrawn
-            }))}
-            sortMode={numberSortMode}
-            onSortModeChange={setNumberSortMode}
-          />
-          <OrderExceptionList exceptions={computed.orderExceptions} />
-          <OrderTable
-            orders={visibleOrders}
-            keyword={orderKeyword}
-            onKeywordChange={setOrderKeyword}
-            filter={orderFilter}
-            onFilterChange={(value) => {
-              startFilterTransition(() => {
-                setOrderFilter(value);
-              });
-            }}
-            isFiltering={isFiltering || computing}
-          />
-        </>
-      )}
+      <SummaryCards summary={computed.summary} />
+      <BarChartPanel
+        title="特码柱状图"
+        items={visibleNumberBars.map((item) => ({
+          key: item.number,
+          label: item.number,
+          sublabel: item.zodiac,
+          amount: item.amount,
+          accent: item.isDrawn ? WAVE_ACCENTS[item.wave ?? "blue"] : undefined,
+          highlighted: item.isDrawn
+        }))}
+        sortMode={numberSortMode}
+        onSortModeChange={setNumberSortMode}
+      />
+      <OrderExceptionList exceptions={computed.orderExceptions} />
+      <OrderTable
+        orders={visibleOrders}
+        keyword={orderKeyword}
+        onKeywordChange={setOrderKeyword}
+        filter={orderFilter}
+        onFilterChange={setOrderFilter}
+        isFiltering={isFiltering}
+      />
       {children}
     </div>
   );
