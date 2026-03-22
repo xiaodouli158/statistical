@@ -30,7 +30,7 @@ import {
 
 const HIDDEN_SYSTEM_ACCOUNT = "c0000";
 const PROTECTED_ADMIN_ACCOUNTS = new Set(["c0000", "c0001"]);
-const EXPECT_COMPUTE_PARSER_VERSION = "v1";
+const EXPECT_COMPUTE_PARSER_VERSION = "v2";
 const ORDER_ODDS_CONFIG = resolveOddsConfig();
 
 type ExpectSource = Pick<SnapshotRecord, "messageChunks" | "receivedAt">;
@@ -178,7 +178,11 @@ function isExpectComputeCacheFresh(
     return false;
   }
 
-  return cacheRow.snapshot_updated_at === snapshotRow.updated_at && cacheRow.draw_updated_at === (drawRow?.updated_at ?? null);
+  return (
+    cacheRow.parser_version === EXPECT_COMPUTE_PARSER_VERSION &&
+    cacheRow.snapshot_updated_at === snapshotRow.updated_at &&
+    cacheRow.draw_updated_at === (drawRow?.updated_at ?? null)
+  );
 }
 
 async function upsertExpectComputeCache(
