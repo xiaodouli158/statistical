@@ -22,13 +22,19 @@ const STANDARD_FORMAT_EXAMPLE: ExampleSegment[] = [
 const HELP_SECTIONS: HelpSection[] = [
   {
     title: "特码直投",
-    description: "未标识玩法的订单默认按“特码直投”处理，生肖会自动换算成对应号码参与统计。生肖下注必须使用“各数”或“各号”，否则按未识别处理。",
+    description:
+      "未标识玩法的订单默认按“特码直投”处理，生肖会自动换算成对应号码参与统计。组合条件支持波色、大小单双、家肖/野肖，也支持生肖和这些条件做交集；同类条件取并集，不同类条件取交集。生肖下注必须使用“各数”或“各号”，否则按未识别处理。",
     examples: [
       [{ text: "01,03,24,34" }, { text: "各", tone: "marker" }, { text: "16" }],
       [{ text: "01,03,24,34" }, { text: "各数", tone: "marker" }, { text: "16米" }],
       [{ text: "1.3.24.34" }, { text: "//", tone: "marker" }, { text: "10块" }],
       [{ text: "兔狗鸡" }, { text: "各数", tone: "marker" }, { text: "12" }],
-      [{ text: "兔，狗，鸡" }, { text: "各号", tone: "marker" }, { text: "10" }]
+      [{ text: "兔，狗，鸡" }, { text: "各号", tone: "marker" }, { text: "10" }],
+      [{ text: "兔龙大" }, { text: "各数", tone: "marker" }, { text: "6" }],
+      [{ text: "红单" }, { text: "各数", tone: "marker" }, { text: "6米" }],
+      [{ text: "红绿波小数" }, { text: "各号", tone: "marker" }, { text: "6" }],
+      [{ text: "家肖大" }, { text: "各数", tone: "marker" }, { text: "6块" }],
+      [{ text: "野兽双数" }, { text: "各号", tone: "marker" }, { text: "6元" }]
     ]
   },
   {
@@ -98,6 +104,7 @@ export function BettingHelpPanel() {
           <span className="eyebrow">金额标记</span>
           <p className="help-panel__text">号码直投支持：{NUMBER_HELP_MARKERS.join("、")}。</p>
           <p className="help-panel__text">生肖直投仅支持：{ZODIAC_HELP_MARKERS.join("、")}。</p>
+          <p className="help-panel__text">组合别名：“野兽”按“野肖”处理，“家畜”按“家肖”处理。</p>
         </div>
       </div>
     </Panel>

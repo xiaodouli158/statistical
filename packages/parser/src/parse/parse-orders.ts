@@ -3,7 +3,8 @@ import { getOddsForPlayType, resolveOddsConfig } from "../config/odds";
 import type { Marker, OddsConfigInput, OrderException, ParsedOrder, ParseOrdersResult, PlayType } from "../types";
 import { MARKERS } from "../constants/markers";
 import { parseChineseNumber } from "../utils/chinese-number";
-import { normalizeChunk, normalizeNumberToken } from "../utils/text";
+import { normalizeChunk } from "../utils/text";
+import { resolveTemaSubject } from "../utils/tema-filters";
 import { extractZodiacs, getNumbersForZodiac } from "../utils/zodiac";
 
 const PRICE_UNIT_PATTERN = /(米|元|块|塊|斤)$/;
@@ -208,6 +209,21 @@ function buildContent(numbers: string[], zodiacs: ZodiacName[], referenceDate: s
   return segments.join(", ");
 }
 
+function buildResolvedTemaContent(
+  subject: string,
+  values: string[],
+  directNumbers: string[],
+  directZodiacs: ZodiacName[],
+  referenceDate: string | null | undefined,
+  usesFilterGroups: boolean
+): string {
+  if (!usesFilterGroups) {
+    return buildContent(directNumbers, directZodiacs, referenceDate) || subject;
+  }
+
+  return values.length > 0 ? `${subject}（${values.join(",")}）` : subject;
+}
+
 function buildException(raw: string, sourceChunk: string, reason: string, index: number): OrderException {
   return {
     id: `exception-${index}`,
@@ -297,14 +313,18 @@ function parseTemaDirectOrder(
   referenceDate: string | null | undefined,
   oddsConfig: OddsConfigInput | undefined
 ): ParsedOrder | OrderException {
-  const numbers = Array.from(subject.matchAll(/\d{1,2}/g)).map(([value]) => normalizeNumberToken(value));
-  const zodiacs = extractZodiacs(subject);
-  const zodiacNumbers = zodiacs.flatMap((zodiac) => getNumbersForZodiac(zodiac, referenceDate));
-  const values = [...numbers, ...zodiacNumbers];
+  const resolvedSubject = resolveTemaSubject(subject, referenceDate);
+  const numbers = resolvedSubject.directNumbers;
+  const zodiacs = resolvedSubject.directZodiacs;
+  const values = resolvedSubject.values;
   const { priceRaw, unitPrice } = extractPrice(pricePart);
 
+  if (!resolvedSubject.hasRecognizedContent) {
+    return buildException(candidate, sourceChunk, "未识别到号码、生肖或组合条件", orderNo);
+  }
+
   if (values.length === 0) {
-    return buildException(candidate, sourceChunk, "未识别到号码或生肖", orderNo);
+    return buildException(candidate, sourceChunk, "组合条件未匹配到号码", orderNo);
   }
 
   if (zodiacs.length > 0 && !isTemaZodiacMarker(marker)) {
@@ -320,7 +340,8 @@ function parseTemaDirectOrder(
   }
 
   const resolvedOdds = resolveOddsConfig(oddsConfig);
-  const content = buildContent(numbers, zodiacs, referenceDate) || subject || candidate;
+  const content =
+    buildResolvedTemaContent(subject, values, numbers, zodiacs, referenceDate, resolvedSubject.usesFilterGroups) || subject || candidate;
   const betCount = values.length;
 
   return {
