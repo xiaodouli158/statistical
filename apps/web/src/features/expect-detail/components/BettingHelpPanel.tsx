@@ -1,11 +1,10 @@
 import {
+  BASE_ELEMENT_NUMBER_MAP,
   DOMESTIC_ZODIACS,
-  NUMBER_ORDER_NATURAL,
   WILD_ZODIACS,
-  getNumbersForParityCategory,
-  getNumbersForSizeCategory,
+  getNumbersForElement,
   getNumbersForWaveColor,
-  getNumbersForZodiacGroup
+  resolveZodiacAnchorYear
 } from "@statisticalsystem/shared";
 import { Panel } from "../../../components/Panel";
 
@@ -23,8 +22,8 @@ type HelpSection = {
 };
 
 type ReferenceCard = {
-  title: string;
-  lines: string[];
+  label: string;
+  value: string;
 };
 
 type TableRow = {
@@ -32,18 +31,11 @@ type TableRow = {
   values: Array<number | null>;
 };
 
-const FIVE_ELEMENT_GROUPS = [
-  { label: "金", values: ["03", "04", "11", "12", "25", "26", "33", "34", "41", "42"] },
-  { label: "木", values: ["07", "08", "15", "16", "23", "24", "37", "38", "45", "46"] },
-  { label: "水", values: ["13", "14", "21", "22", "29", "30", "43", "44"] },
-  { label: "火", values: ["01", "02", "09", "10", "17", "18", "31", "32", "39", "40", "47", "48"] },
-  { label: "土", values: ["05", "06", "19", "20", "27", "28", "35", "36", "49"] }
-] as const;
-
 const MULTIPLE_TARGETS = [2, 3, 4, 5, 6, 7] as const;
-const MULTIPLE_ROW_COUNTS = Array.from({ length: 19 }, (_, index) => index + 2);
-const DRAG_BANKER_COUNTS = [1, 2, 3, 4, 5, 6] as const;
-const DRAG_TRAILER_COUNTS = Array.from({ length: 12 }, (_, index) => index + 1);
+const MULTIPLE_ROW_COUNTS = Array.from({ length: 13 }, (_, index) => index + 3);
+const DRAG_BANKER_COUNTS = [2, 3, 4, 5, 6] as const;
+const DRAG_TRAILER_COUNTS = Array.from({ length: 9 }, (_, index) => index + 2);
+const FIVE_ELEMENTS = Object.keys(BASE_ELEMENT_NUMBER_MAP) as Array<keyof typeof BASE_ELEMENT_NUMBER_MAP>;
 
 const STANDARD_FORMAT_EXAMPLE: ExampleSegment[] = [
   { text: "01,03,24,34" },
@@ -97,9 +89,21 @@ function formatLocalDate(date = new Date()): string {
   return `${year}-${month}-${day}`;
 }
 
-function orderNumbers(values: string[]): string[] {
-  const valueSet = new Set(values);
-  return NUMBER_ORDER_NATURAL.filter((value) => valueSet.has(value));
+function toChineseNumber(value: number): string {
+  const numbers = ["零", "一", "二", "三", "四", "五", "六", "七", "八", "九", "十"];
+
+  if (value <= 10) {
+    return numbers[value] ?? String(value);
+  }
+
+  if (value < 20) {
+    return `十${numbers[value - 10] ?? ""}`;
+  }
+
+  const tens = Math.floor(value / 10);
+  const units = value % 10;
+
+  return `${numbers[tens] ?? String(tens)}十${units === 0 ? "" : numbers[units] ?? String(units)}`;
 }
 
 function combination(count: number, pick: number): number {
@@ -118,54 +122,36 @@ function combination(count: number, pick: number): number {
 }
 
 function buildReferenceCards(referenceDate: string): ReferenceCard[] {
-  const homeNumbers = orderNumbers(getNumbersForZodiacGroup("家肖", referenceDate));
-  const wildNumbers = orderNumbers(getNumbersForZodiacGroup("野肖", referenceDate));
-  const bigNumbers = getNumbersForSizeCategory("大");
-  const smallNumbers = getNumbersForSizeCategory("小");
-  const oddNumbers = getNumbersForParityCategory("单");
-  const evenNumbers = getNumbersForParityCategory("双");
-
+  const lunarYear = resolveZodiacAnchorYear(referenceDate);
   return [
     {
-      title: `家肖（${homeNumbers.length}个）`,
-      lines: [`生肖：${DOMESTIC_ZODIACS.join("、")}`, `号码：${homeNumbers.join(",")}`]
+      label: `家肖（25个）`,
+      value: DOMESTIC_ZODIACS.join("、")
     },
     {
-      title: `野肖（${wildNumbers.length}个）`,
-      lines: [`生肖：${WILD_ZODIACS.join("、")}`, `号码：${wildNumbers.join(",")}`]
+      label: `野肖（24个）`,
+      value: WILD_ZODIACS.join("、")
     },
     {
-      title: `红波（${getNumbersForWaveColor("red").length}个）`,
-      lines: [getNumbersForWaveColor("red").join(",")]
+      label: `红波（${getNumbersForWaveColor("red").length}个）`,
+      value: getNumbersForWaveColor("red").join(",")
     },
     {
-      title: `蓝波（${getNumbersForWaveColor("blue").length}个）`,
-      lines: [getNumbersForWaveColor("blue").join(",")]
+      label: `蓝波（${getNumbersForWaveColor("blue").length}个）`,
+      value: getNumbersForWaveColor("blue").join(",")
     },
     {
-      title: `绿波（${getNumbersForWaveColor("green").length}个）`,
-      lines: [getNumbersForWaveColor("green").join(",")]
+      label: `绿波（${getNumbersForWaveColor("green").length}个）`,
+      value: getNumbersForWaveColor("green").join(",")
     },
+    ...FIVE_ELEMENTS.map((element) => ({
+      label: `${element}（${getNumbersForElement(element, referenceDate).length}个）`,
+      value: getNumbersForElement(element, referenceDate).join(",")
+    })),
     {
-      title: `大数（${bigNumbers.length}个）`,
-      lines: [bigNumbers.join(",")]
-    },
-    {
-      title: `小数（${smallNumbers.length}个）`,
-      lines: [smallNumbers.join(",")]
-    },
-    {
-      title: `单数（${oddNumbers.length}个）`,
-      lines: [oddNumbers.join(",")]
-    },
-    {
-      title: `双数（${evenNumbers.length}个）`,
-      lines: [evenNumbers.join(",")]
-    },
-    ...FIVE_ELEMENT_GROUPS.map((group) => ({
-      title: `${group.label}（${group.values.length}个）`,
-      lines: [group.values.join(",")]
-    }))
+      label: "年份口径",
+      value: `${referenceDate}（农历${lunarYear}年）`
+    }
   ];
 }
 
@@ -178,7 +164,7 @@ function buildMultipleRows(): TableRow[] {
 
 function buildDragRows(bankers: number): TableRow[] {
   return DRAG_TRAILER_COUNTS.map((trailers) => ({
-    label: String(trailers),
+    label: `${toChineseNumber(bankers)}拖${toChineseNumber(trailers)}`,
     values: MULTIPLE_TARGETS.map((target) => {
       const picksNeeded = target - bankers;
 
@@ -276,46 +262,34 @@ export function BettingHelpPanel() {
 
         <div className="help-panel__section">
           <span className="eyebrow">对照表</span>
-          <p className="help-panel__note">家肖、野肖号码会按当前年份自动换算。当前帮助页口径日期：{referenceDate}。</p>
-          <div className="help-panel__reference-grid">
+          <p className="help-panel__note">家肖、野肖按当前农历年份自动换算；五行按 2025 蛇年基准整体平移。</p>
+          <div className="help-panel__reference-list">
             {referenceCards.map((card) => (
-              <article className="help-panel__reference-card" key={card.title}>
-                <h4 className="help-panel__subheading">{card.title}</h4>
-                {card.lines.map((line, index) => (
-                  <p className="help-panel__reference-line" key={`${card.title}-${index}`}>
-                    {line}
-                  </p>
-                ))}
-              </article>
+              <p className="help-panel__reference-line" key={card.label}>
+                {card.label}：{card.value}
+              </p>
             ))}
           </div>
         </div>
 
         <div className="help-panel__section">
           <span className="eyebrow">复式参照表</span>
-          <p className="help-panel__note">表头为复式二到复式七，行是号码个数，单元格显示对应的组数。</p>
+          <p className="help-panel__note">表头为复式二到复式七，行是号码个数，范围显示 3 到 15 个号。</p>
           {renderTable(
             "个数",
-            MULTIPLE_TARGETS.map((target) => `复式${target}`),
+            MULTIPLE_TARGETS.map((target) => `复式${toChineseNumber(target)}`),
             multipleRows
           )}
         </div>
 
         <div className="help-panel__section">
           <span className="eyebrow">拖式参照表</span>
-          <p className="help-panel__note">组数按 C（拖码个数，目标个数 - 胆码个数）计算，下面按不同胆码个数展示二组到七组的对应组数。</p>
-          <div className="help-panel__drag-grid">
-            {DRAG_BANKER_COUNTS.map((bankers) => (
-              <div className="help-panel__table-section" key={bankers}>
-                <h4 className="help-panel__subheading">{bankers}胆</h4>
-                {renderTable(
-                  "拖码个数",
-                  MULTIPLE_TARGETS.map((target) => `${target}组`),
-                  buildDragRows(bankers)
-                )}
-              </div>
-            ))}
-          </div>
+          <p className="help-panel__note">组合方式按“胆码个数拖拖码个数”显示，例如二拖二、二拖三到六拖十。</p>
+          {renderTable(
+            "组合方式",
+            MULTIPLE_TARGETS.map((target) => `拖式${toChineseNumber(target)}`),
+            DRAG_BANKER_COUNTS.flatMap((bankers) => buildDragRows(bankers))
+          )}
         </div>
       </div>
     </Panel>

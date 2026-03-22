@@ -660,36 +660,14 @@ select {
   overflow-wrap: anywhere;
 }
 
-.help-panel__reference-grid,
-.help-panel__drag-grid {
+.help-panel__reference-list {
   display: grid;
-  gap: 12px;
-}
-
-.help-panel__reference-grid {
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-}
-
-.help-panel__reference-card,
-.help-panel__table-section {
-  display: grid;
-  gap: 8px;
-  border-radius: 16px;
-  padding: 14px 16px;
-  border: 1px solid rgba(71, 91, 79, 0.12);
-  background: rgba(255, 250, 241, 0.92);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.45);
-}
-
-.help-panel__subheading {
-  margin: 0;
-  font-size: 15px;
-  color: #274135;
+  gap: 4px;
 }
 
 .help-panel__reference-line {
   margin: 0;
-  line-height: 1.7;
+  line-height: 1.65;
   color: #30453a;
   overflow-wrap: anywhere;
 }
@@ -703,16 +681,16 @@ select {
 
 .help-panel__table {
   width: 100%;
-  min-width: 640px;
+  min-width: 560px;
   border-collapse: collapse;
 }
 
 .help-panel__table th,
 .help-panel__table td {
-  padding: 10px 12px;
+  padding: 6px 8px;
   border-bottom: 1px solid rgba(71, 91, 79, 0.1);
   text-align: center;
-  font-size: 13px;
+  font-size: 12px;
   white-space: nowrap;
 }
 
