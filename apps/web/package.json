@@ -21,6 +21,6 @@
     "build": "vite build",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "dev": "vite",
-    "deploy": "wrangler pages deploy"
+    "deploy": "wrangler pages deploy dist"
   }
 }

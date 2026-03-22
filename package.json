@@ -13,10 +13,10 @@
     "typecheck": "npm run typecheck -w @statisticalsystem/shared && npm run typecheck -w @statisticalsystem/parser && npm run typecheck -w @statisticalsystem/worker && npm run typecheck -w @statisticalsystem/web",
     "dev:web": "npm run dev -w @statisticalsystem/web",
     "dev:worker": "npm run dev -w @statisticalsystem/worker",
-    "cf:deploy": "node scripts/deploy-cf.mjs",
-    "cf:pages:create": "node scripts/deploy-cf.mjs pages:create",
-    "cf:pages:deploy": "node scripts/deploy-cf.mjs pages",
-    "cf:worker:deploy": "node scripts/deploy-cf.mjs worker",
-    "cf:worker:deploy:dry-run": "node scripts/deploy-cf.mjs worker --dry-run"
+    "cf:deploy": "npm run cf:worker:deploy && npm run cf:pages:deploy",
+    "cf:pages:create": "npx wrangler pages project create statisticalsystem",
+    "cf:pages:deploy": "npm run build -w @statisticalsystem/web && npm run deploy -w @statisticalsystem/web",
+    "cf:worker:deploy": "npm run deploy -w @statisticalsystem/worker",
+    "cf:worker:deploy:dry-run": "npm run deploy -w @statisticalsystem/worker -- --dry-run"
   }
 }
