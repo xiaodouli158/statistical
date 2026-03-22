@@ -30,7 +30,7 @@ import {
 
 const HIDDEN_SYSTEM_ACCOUNT = "c0000";
 const PROTECTED_ADMIN_ACCOUNTS = new Set(["c0000", "c0001"]);
-const EXPECT_COMPUTE_PARSER_VERSION = "v3";
+const EXPECT_COMPUTE_PARSER_VERSION = "v4";
 const ORDER_ODDS_CONFIG = resolveOddsConfig();
 
 type ExpectSource = Pick<SnapshotRecord, "messageChunks" | "receivedAt">;
@@ -227,7 +227,7 @@ async function upsertExpectComputeCache(
       computed.orderExceptions.length,
       computed.summary.totalAmount,
       computed.summary.winAmount,
-      computed.summary.profit,
+      computed.summary.houseProfitLoss,
       JSON.stringify(computed),
       now,
       now

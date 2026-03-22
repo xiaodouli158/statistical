@@ -22,7 +22,7 @@ export function ExpectDetailContent({ data, children }: ExpectDetailContentProps
   const computed = data.computed;
   const [orderKeyword, setOrderKeyword] = useState("");
   const [orderFilter, setOrderFilter] = useState<OrderFilter>("all");
-  const [numberSortMode, setNumberSortMode] = useState<NumberSortMode>("natural");
+  const [numberSortMode, setNumberSortMode] = useState<NumberSortMode>("amountDesc");
   const deferredOrderKeyword = useDeferredValue(orderKeyword);
   const headerDrawResult = useMemo(() => normalizeDrawResult(data.drawResult), [data.drawResult]);
 

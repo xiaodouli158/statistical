@@ -106,6 +106,10 @@ export type SessionRow = {
   expires_at: string;
 };
 
+function roundCurrency(value: number): number {
+  return Math.round((value + Number.EPSILON) * 100) / 100;
+}
+
 export function toUserRecord(row: UserRow): UserRecord {
   return {
     id: row.id,
@@ -194,6 +198,12 @@ export function toExpectDetailComputed(row: ExpectComputeCacheRow): ExpectDetail
 }
 
 export function toExpectComputeCacheRecord(row: ExpectComputeCacheRow): ExpectComputeCacheRecord {
+  const computed = toExpectDetailComputed(row);
+  const rebateAmount = computed.summary.rebateAmount ?? roundCurrency(row.total_amount * 0.03);
+  const houseProfitLoss = computed.summary.houseProfitLoss ?? row.profit;
+  const finalProfitLoss =
+    computed.summary.finalProfitLoss ?? (houseProfitLoss === null ? null : roundCurrency(houseProfitLoss - rebateAmount));
+
   return {
     account: row.account,
     lotteryType: row.lottery_type,
@@ -206,8 +216,10 @@ export function toExpectComputeCacheRecord(row: ExpectComputeCacheRow): ExpectCo
     exceptionCount: row.exception_count,
     totalAmount: row.total_amount,
     winAmount: row.win_amount,
-    profit: row.profit,
-    computed: toExpectDetailComputed(row),
+    houseProfitLoss,
+    rebateAmount,
+    finalProfitLoss,
+    computed,
     createdAt: row.created_at,
     updatedAt: row.updated_at
   };

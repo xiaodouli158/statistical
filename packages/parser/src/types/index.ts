@@ -80,7 +80,9 @@ export type SummaryMetrics = {
   loseOrderCount: number | null;
   winAmount: number | null;
   totalAmount: number;
-  profit: number | null;
+  houseProfitLoss: number | null;
+  rebateAmount: number;
+  finalProfitLoss: number | null;
 };
 
 export type NumberBarItem = {
