@@ -12,6 +12,9 @@ const SEPARATOR_PATTERN = /[\s,，、。.;；]+/;
 const CHINESE_NUMBER_PATTERN = /[零一二两三四五六七八九十百千]/;
 const SLASH_MARKER_PATTERN = /\/+/g;
 const ZODIAC_TEMA_MARKERS = new Set<Marker>(["各数", "各号"]);
+const CHAT_HEADER_PATTERN = /(?:聊天记录如下|的聊天记录如下|的聊天记录)/u;
+const DATE_SEPARATOR_PATTERN = /^[\s\-—_=~·•\u2500-\u257f]*\d{4}-\d{1,2}-\d{1,2}[\s\-—_=~·•\u2500-\u257f]*$/u;
+const DECORATIVE_SEPARATOR_ONLY_PATTERN = /^[\s\-—_=~·•\u2500-\u257f]{3,}$/u;
 const CANDIDATE_POLLUTION_RULES: Array<{ pattern: RegExp; reason: string }> = [
   {
     pattern: /20\d{5}/,
@@ -22,21 +25,23 @@ const CANDIDATE_POLLUTION_RULES: Array<{ pattern: RegExp; reason: string }> = [
     reason: "检测到完整日期污染，请先清洗邮件元信息"
   },
   {
-    pattern: /(微信群聊记录如下|微信群聊天记录如下|微信聊天记录如下|群聊记录如下|聊天记录如下|微信群.*的聊天记录如下)/,
+    pattern: CHAT_HEADER_PATTERN,
     reason: "检测到聊天头污染，请先清洗邮件元信息"
   }
 ];
 const IGNORED_CHUNK_PATTERNS = [
   /^Dear:?$/i,
-  /^(?:微信群聊记录如下|微信群聊天记录如下|微信聊天记录如下|群聊记录如下|聊天记录如下|微信群.*的聊天记录如下):?$/,
+  /^(?=.{0,200}$).*?(?:聊天记录如下|的聊天记录如下|的聊天记录)[:：]?$/u,
   /^第?\s*20\d{5}\s*期?[:：]?$/,
   /^20\d{5}$/,
   /^\d{4}-\d{1,2}-\d{1,2}$/,
   /^\d{4}-\d{1,2}-\d{1,2}\s+\d{2}:\d{2}(:\d{2})?$/,
-  /^[^:]{1,40}\s+\d{2}:\d{2}(:\d{2})?$/,
-  /^[^:]{1,40}\s+\d{4}-\d{1,2}-\d{1,2}\s+\d{2}:\d{2}(:\d{2})?$/,
+  /^[^:：]{1,40}\s+\d{2}:\d{2}(:\d{2})?$/u,
+  /^[^:：]{1,40}\s+\d{4}-\d{1,2}-\d{1,2}\s+\d{2}:\d{2}(:\d{2})?$/u,
   /^[-=—_]{3,}$/,
   /^[-=—_\s]*\d{4}-\d{1,2}-\d{1,2}[-=—_\s]*$/,
+  DATE_SEPARATOR_PATTERN,
+  DECORATIVE_SEPARATOR_ONLY_PATTERN,
   /^[-—]\d{1,4}$/
 ];
 const PLAY_TYPE_PREFIXES: Array<{ prefix: string; playType: PlayType }> = [
