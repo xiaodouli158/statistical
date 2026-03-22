@@ -9,6 +9,22 @@
       "30 13 * * *"
     ]
   },
+  "queues": {
+    "producers": [
+      {
+        "binding": "EMAIL_PROCESSING_QUEUE",
+        "queue": "statisticalsystem-email-processing"
+      }
+    ],
+    "consumers": [
+      {
+        "queue": "statisticalsystem-email-processing",
+        "max_batch_size": 10,
+        "max_batch_timeout": 5,
+        "max_retries": 3
+      }
+    ]
+  },
   "d1_databases": [
     {
       "binding": "DB",

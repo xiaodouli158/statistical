@@ -10,10 +10,12 @@ import type {
   SnapshotRecord,
   UserRecord
 } from "@statisticalsystem/shared";
+import type { EmailProcessingMessage, InboundEmailProcessingStatus } from "../email/types";
 import { isMembershipExpired } from "../utils/time";
 
 export type Env = {
   DB: D1Database;
+  EMAIL_PROCESSING_QUEUE: Queue<EmailProcessingMessage>;
   APP_ORIGIN: string;
   SUPER_PASSWORD?: string;
   MACAU_INBOX?: string;
@@ -64,6 +66,25 @@ export type MailRecordRow = {
   raw_body: string;
   message_chunks_json: string;
   created_at: string;
+};
+
+export type InboundEmailRow = {
+  id: string;
+  account: string;
+  lottery_type: LotteryType;
+  inbox: string;
+  received_at: string;
+  mail_from: string;
+  mail_subject: string | null;
+  raw_body: string;
+  processing_status: InboundEmailProcessingStatus;
+  processing_attempts: number;
+  processing_error: string | null;
+  parsed_expect: string | null;
+  message_chunks_json: string | null;
+  processed_record_id: string | null;
+  created_at: string;
+  updated_at: string;
 };
 
 export type DrawRow = {

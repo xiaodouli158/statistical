@@ -12,9 +12,25 @@ const SEPARATOR_PATTERN = /[\s,，、。.;；]+/;
 const CHINESE_NUMBER_PATTERN = /[零一二两三四五六七八九十百千]/;
 const SLASH_MARKER_PATTERN = /\/+/g;
 const ZODIAC_TEMA_MARKERS = new Set<Marker>(["各数", "各号"]);
+const CANDIDATE_POLLUTION_RULES: Array<{ pattern: RegExp; reason: string }> = [
+  {
+    pattern: /20\d{5}/,
+    reason: "检测到7位期号污染，请先清洗邮件元信息"
+  },
+  {
+    pattern: /\b\d{4}-\d{1,2}-\d{1,2}(?:\s+\d{2}:\d{2}(?::\d{2})?)?\b/,
+    reason: "检测到完整日期污染，请先清洗邮件元信息"
+  },
+  {
+    pattern: /(微信群聊记录如下|微信群聊天记录如下|微信聊天记录如下|群聊记录如下|聊天记录如下)/,
+    reason: "检测到聊天头污染，请先清洗邮件元信息"
+  }
+];
 const IGNORED_CHUNK_PATTERNS = [
   /^Dear:?$/i,
-  /^微信群.*聊天记录如下:?$/,
+  /^(?:微信群聊记录如下|微信群聊天记录如下|微信聊天记录如下|群聊记录如下|聊天记录如下):?$/,
+  /^第?\s*20\d{5}\s*期?[:：]?$/,
+  /^20\d{5}$/,
   /^\d{4}-\d{1,2}-\d{1,2}$/,
   /^\d{4}-\d{1,2}-\d{1,2}\s+\d{2}:\d{2}(:\d{2})?$/,
   /^[^:]{1,40}\s+\d{2}:\d{2}(:\d{2})?$/,
@@ -322,6 +338,18 @@ function buildException(raw: string, sourceChunk: string, reason: string, index:
     sourceChunk,
     reason
   };
+}
+
+function detectCandidatePollution(candidate: string): string | null {
+  const normalizedCandidate = normalizeChunk(candidate);
+
+  for (const rule of CANDIDATE_POLLUTION_RULES) {
+    if (rule.pattern.test(normalizedCandidate)) {
+      return rule.reason;
+    }
+  }
+
+  return null;
 }
 
 function extractPlayType(subject: string): { playType: PlayType; subject: string } {
@@ -638,6 +666,12 @@ function parseCandidate(
   referenceDate: string | null | undefined,
   oddsConfig: OddsConfigInput | undefined
 ): ParsedOrder | OrderException {
+  const pollutionReason = detectCandidatePollution(candidate);
+
+  if (pollutionReason) {
+    return buildException(candidate, sourceChunk, pollutionReason, orderNo);
+  }
+
   const markerMatch = findMarker(candidate);
 
   if (!markerMatch) {

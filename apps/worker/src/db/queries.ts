@@ -16,7 +16,7 @@ import type {
 import { buildNumberBars, buildSummaryMetrics, normalizeDrawResult, parseOrders, resolveOddsConfig, settleOrders } from "@statisticalsystem/parser";
 import { normalizeEmailAddress } from "../utils/strings";
 import { formatNowIso, getBeijingDateString, normalizeMemberExpiresOn } from "../utils/time";
-import type { DrawRow, Env, ExpectComputeCacheRow, MailRecordRow, SessionRow, SnapshotRow, UserRow } from "./types";
+import type { DrawRow, Env, ExpectComputeCacheRow, InboundEmailRow, MailRecordRow, SessionRow, SnapshotRow, UserRow } from "./types";
 import {
   toDrawRecord,
   toExpectComputeCacheRecord,
@@ -30,7 +30,7 @@ import {
 
 const HIDDEN_SYSTEM_ACCOUNT = "c0000";
 const PROTECTED_ADMIN_ACCOUNTS = new Set(["c0000", "c0001"]);
-const EXPECT_COMPUTE_PARSER_VERSION = "v4";
+const EXPECT_COMPUTE_PARSER_VERSION = "v5";
 const ORDER_ODDS_CONFIG = resolveOddsConfig();
 
 type ExpectSource = Pick<SnapshotRecord, "messageChunks" | "receivedAt">;
@@ -757,7 +757,16 @@ export async function insertMailRecord(env: Env, input: {
         id, account, lottery_type, expect, received_at, mail_from, mail_subject,
         raw_body, message_chunks_json, created_at
       )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ON CONFLICT(id) DO UPDATE SET
+        account = excluded.account,
+        lottery_type = excluded.lottery_type,
+        expect = excluded.expect,
+        received_at = excluded.received_at,
+        mail_from = excluded.mail_from,
+        mail_subject = excluded.mail_subject,
+        raw_body = excluded.raw_body,
+        message_chunks_json = excluded.message_chunks_json`
   )
     .bind(
       input.id,
@@ -771,6 +780,89 @@ export async function insertMailRecord(env: Env, input: {
       JSON.stringify(input.messageChunks),
       now
     )
+    .run();
+}
+
+export async function insertInboundEmail(env: Env, input: {
+  id: string;
+  account: string;
+  lotteryType: LotteryType;
+  inbox: string;
+  receivedAt: string;
+  mailFrom: string;
+  mailSubject: string | null;
+  rawBody: string;
+}): Promise<void> {
+  const now = formatNowIso();
+
+  await env.DB.prepare(
+    `INSERT INTO inbound_emails (
+        id, account, lottery_type, inbox, received_at, mail_from, mail_subject, raw_body,
+        processing_status, processing_attempts, processing_error, parsed_expect, message_chunks_json,
+        processed_record_id, created_at, updated_at
+      )
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending', 0, NULL, NULL, NULL, NULL, ?, ?)`
+  )
+    .bind(
+      input.id,
+      input.account,
+      input.lotteryType,
+      input.inbox,
+      input.receivedAt,
+      input.mailFrom,
+      input.mailSubject,
+      input.rawBody,
+      now,
+      now
+    )
+    .run();
+}
+
+export async function getInboundEmailById(env: Env, id: string): Promise<InboundEmailRow | null> {
+  return first<InboundEmailRow>(env.DB.prepare("SELECT * FROM inbound_emails WHERE id = ? LIMIT 1").bind(id));
+}
+
+export async function markInboundEmailAttempt(env: Env, id: string): Promise<void> {
+  await env.DB.prepare(
+    `UPDATE inbound_emails
+     SET processing_attempts = processing_attempts + 1,
+         processing_error = NULL,
+         updated_at = ?
+     WHERE id = ?`
+  )
+    .bind(formatNowIso(), id)
+    .run();
+}
+
+export async function markInboundEmailProcessed(env: Env, input: {
+  id: string;
+  expect: string;
+  messageChunks: string[];
+  processedRecordId: string;
+}): Promise<void> {
+  await env.DB.prepare(
+    `UPDATE inbound_emails
+     SET processing_status = 'processed',
+         processing_error = NULL,
+         parsed_expect = ?,
+         message_chunks_json = ?,
+         processed_record_id = ?,
+         updated_at = ?
+     WHERE id = ?`
+  )
+    .bind(input.expect, JSON.stringify(input.messageChunks), input.processedRecordId, formatNowIso(), input.id)
+    .run();
+}
+
+export async function markInboundEmailFailed(env: Env, id: string, errorMessage: string): Promise<void> {
+  await env.DB.prepare(
+    `UPDATE inbound_emails
+     SET processing_status = 'failed',
+         processing_error = ?,
+         updated_at = ?
+     WHERE id = ?`
+  )
+    .bind(errorMessage, formatNowIso(), id)
     .run();
 }
 

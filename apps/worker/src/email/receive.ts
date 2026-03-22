@@ -1,10 +1,9 @@
 import PostalMime from "postal-mime";
 import type { LotteryType } from "@statisticalsystem/shared";
 import type { Env } from "../db/types";
-import { getActiveMailUserBySender, insertMailRecord, refreshExpectComputeCacheForAccount, upsertSnapshot } from "../db/queries";
+import { getActiveMailUserBySender, insertInboundEmail } from "../db/queries";
 import { normalizeEmailAddress } from "../utils/strings";
-import { cleanMailBody } from "./clean";
-import { detectExpect } from "./detect-expect";
+import type { EmailProcessingMessage } from "./types";
 
 type ParsedMail = {
   subject: string | null;
@@ -40,12 +39,12 @@ function resolveLotteryType(env: Env, inbox: string): LotteryType | null {
   return null;
 }
 
-export async function handleEmail(message: ForwardableEmailMessage, env: Env): Promise<void> {
+export async function handleEmail(message: ForwardableEmailMessage, env: Env, _ctx: ExecutionContext): Promise<void> {
   const inbox = normalizeEmailAddress(message.to);
   const senderEmail = normalizeEmailAddress(message.from);
   const lotteryType = inbox ? resolveLotteryType(env, inbox) : null;
 
-  if (!lotteryType) {
+  if (!lotteryType || !inbox) {
     message.setReject("Unknown inbox");
     return;
   }
@@ -64,43 +63,23 @@ export async function handleEmail(message: ForwardableEmailMessage, env: Env): P
 
   const parsed = await parseMail(message);
   const body = parsed.text.trim();
-  const receivedAt = new Date();
-  const messageChunks = cleanMailBody(body);
-  const expect = detectExpect(parsed.subject, body, receivedAt, lotteryType);
   const recordId = crypto.randomUUID();
+  const receivedAt = new Date().toISOString();
 
-  await insertMailRecord(env, {
+  await insertInboundEmail(env, {
     id: recordId,
     account: user.account,
     lotteryType,
-    expect,
-    receivedAt: receivedAt.toISOString(),
+    inbox,
+    receivedAt,
     mailFrom: senderEmail,
     mailSubject: parsed.subject,
-    rawBody: body,
-    messageChunks
+    rawBody: body
   });
 
-  await upsertSnapshot(env, {
-    id: recordId,
-    account: user.account,
-    lotteryType,
-    expect,
-    receivedAt: receivedAt.toISOString(),
-    mailFrom: senderEmail,
-    mailSubject: parsed.subject,
-    rawBody: body,
-    messageChunks
-  });
+  const queueMessage: EmailProcessingMessage = {
+    inboundEmailId: recordId
+  };
 
-  try {
-    await refreshExpectComputeCacheForAccount(env, user.account, lotteryType, expect);
-  } catch (error) {
-    console.error("refreshExpectComputeCacheForAccount failed", {
-      account: user.account,
-      lotteryType,
-      expect,
-      error
-    });
-  }
+  await env.EMAIL_PROCESSING_QUEUE.send(queueMessage);
 }
