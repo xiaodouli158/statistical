@@ -30,8 +30,20 @@ const PLAY_TYPE_PREFIXES: Array<{ prefix: string; playType: PlayType }> = [
   { prefix: "平特", playType: "平特" }
 ];
 
-function splitCandidates(chunk: string): string[] {
-  const candidates: string[] = [];
+type CandidateSegmentKind = "ignored" | "content" | "priced" | "other";
+
+type CandidateSegment = {
+  value: string;
+  kind: CandidateSegmentKind;
+};
+
+type PreparedCandidate = {
+  candidate: string;
+  sourceChunk: string;
+};
+
+function splitCandidateSegments(chunk: string, referenceDate: string | null | undefined): CandidateSegment[] {
+  const segments: CandidateSegment[] = [];
   const source = chunk.replace(/\r\n/g, "\n");
   let cursor = 0;
 
@@ -48,7 +60,10 @@ function splitCandidates(chunk: string): string[] {
       const tail = normalizeChunk(source.slice(cursor));
 
       if (tail) {
-        candidates.push(tail);
+        segments.push({
+          value: tail,
+          kind: classifyChunkForMerge(tail, referenceDate)
+        });
       }
 
       break;
@@ -60,7 +75,10 @@ function splitCandidates(chunk: string): string[] {
       const fallback = normalizeChunk(source.slice(cursor));
 
       if (fallback) {
-        candidates.push(fallback);
+        segments.push({
+          value: fallback,
+          kind: classifyChunkForMerge(fallback, referenceDate)
+        });
       }
 
       break;
@@ -69,13 +87,86 @@ function splitCandidates(chunk: string): string[] {
     const candidate = normalizeChunk(source.slice(cursor, priceEnd));
 
     if (candidate) {
-      candidates.push(candidate);
+      segments.push({
+        value: candidate,
+        kind: "priced"
+      });
     }
 
     cursor = priceEnd;
   }
 
-  return candidates.filter(Boolean);
+  return segments.filter((segment) => Boolean(segment.value));
+}
+
+function mergePreparedCandidateChunks(left: string, right: string): string {
+  return left === right ? left : `${left} ${right}`.trim();
+}
+
+function buildPreparedCandidates(messageChunks: string[], referenceDate: string | null | undefined): PreparedCandidate[] {
+  const preparedChunks = mergeRelatedChunks(messageChunks, referenceDate);
+  const preparedCandidates: PreparedCandidate[] = [];
+  let pendingContent: PreparedCandidate | null = null;
+
+  function flushPendingContent(): void {
+    if (pendingContent) {
+      preparedCandidates.push(pendingContent);
+      pendingContent = null;
+    }
+  }
+
+  for (const chunk of preparedChunks) {
+    const sourceChunk = normalizeChunk(chunk);
+
+    if (!sourceChunk || shouldIgnoreChunk(sourceChunk)) {
+      flushPendingContent();
+      continue;
+    }
+
+    const segments = splitCandidateSegments(chunk, referenceDate);
+
+    for (const segment of segments) {
+      if (segment.kind === "ignored") {
+        flushPendingContent();
+        continue;
+      }
+
+      const current: PreparedCandidate = {
+        candidate: segment.value,
+        sourceChunk
+      };
+
+      if (segment.kind === "content") {
+        pendingContent = pendingContent
+          ? {
+              candidate: `${pendingContent.candidate} ${current.candidate}`.trim(),
+              sourceChunk: mergePreparedCandidateChunks(pendingContent.sourceChunk, current.sourceChunk)
+            }
+          : current;
+        continue;
+      }
+
+      if (segment.kind === "priced") {
+        if (pendingContent) {
+          preparedCandidates.push({
+            candidate: `${pendingContent.candidate} ${current.candidate}`.trim(),
+            sourceChunk: mergePreparedCandidateChunks(pendingContent.sourceChunk, current.sourceChunk)
+          });
+          pendingContent = null;
+        } else {
+          preparedCandidates.push(current);
+        }
+
+        continue;
+      }
+
+      flushPendingContent();
+      preparedCandidates.push(current);
+    }
+  }
+
+  flushPendingContent();
+  return preparedCandidates;
 }
 
 function findMarker(input: string, fromIndex = 0): { marker: Marker; index: number } | null {
@@ -575,27 +666,17 @@ function parseCandidate(
 export function parseOrders(messageChunks: string[], referenceDate?: string | null, oddsConfig?: OddsConfigInput): ParseOrdersResult {
   const orders: ParsedOrder[] = [];
   const exceptions: OrderException[] = [];
-  const preparedChunks = mergeRelatedChunks(messageChunks, referenceDate);
+  const preparedCandidates = buildPreparedCandidates(messageChunks, referenceDate);
 
-  for (const chunk of preparedChunks) {
-    const sourceChunk = normalizeChunk(chunk);
+  for (const { candidate, sourceChunk } of preparedCandidates) {
+    const parsed = parseCandidate(candidate, sourceChunk, orders.length + 1, referenceDate, oddsConfig);
 
-    if (!sourceChunk || shouldIgnoreChunk(sourceChunk)) {
+    if ("playType" in parsed) {
+      orders.push(parsed);
       continue;
     }
 
-    const candidates = splitCandidates(chunk);
-
-    for (const candidate of candidates) {
-      const parsed = parseCandidate(candidate, sourceChunk, orders.length + 1, referenceDate, oddsConfig);
-
-      if ("playType" in parsed) {
-        orders.push(parsed);
-        continue;
-      }
-
-      exceptions.push(buildException(parsed.raw, parsed.sourceChunk, parsed.reason, exceptions.length + 1));
-    }
+    exceptions.push(buildException(parsed.raw, parsed.sourceChunk, parsed.reason, exceptions.length + 1));
   }
 
   return {
