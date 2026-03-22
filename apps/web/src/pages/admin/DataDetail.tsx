@@ -14,6 +14,7 @@ export function AdminDataDetailPage() {
   const [syncing, setSyncing] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
   const fallbackAccount = searchParams.get("account") ?? "";
+  const filterExpect = searchParams.get("expect");
   const fallbackLotteryType = normalizeLotteryType(searchParams.get("lottery"));
   const { data, loading, error } = useExpectDetailQuery(`record:${recordId}:${refreshToken}`, () => getAdminMailRecordDetail(recordId));
 
@@ -32,9 +33,13 @@ export function AdminDataDetailPage() {
       params.set("lottery", lotteryType);
     }
 
+    if (filterExpect) {
+      params.set("expect", filterExpect);
+    }
+
     const search = params.toString();
     return search ? `?${search}` : "";
-  }, [account, lotteryType]);
+  }, [account, filterExpect, lotteryType]);
 
   async function handleSyncDraw() {
     if (!data) {

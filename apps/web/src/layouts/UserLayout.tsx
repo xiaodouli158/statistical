@@ -1,13 +1,14 @@
 import { useEffect, useState } from "react";
 import { LOTTERY_LABELS, type LotteryType } from "@statisticalsystem/shared";
-import { NavLink, Outlet, useNavigate } from "react-router-dom";
+import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { SegmentedControl } from "../components/SegmentedControl";
-import { useLotteryType } from "../hooks/useLotteryType";
+import { buildLotterySearch, useLotteryType } from "../hooks/useLotteryType";
 import { getUserExpects, getUserMe, logoutUser } from "../services/user";
 
 export function UserLayout() {
   const navigate = useNavigate();
-  const { lotteryType, lotterySearch, setLotteryType } = useLotteryType();
+  const location = useLocation();
+  const { lotteryType } = useLotteryType();
   const [username, setUsername] = useState("");
   const [latestExpect, setLatestExpect] = useState<string | null>(null);
 
@@ -60,6 +61,20 @@ export function UserLayout() {
     navigate("/login", { replace: true });
   }
 
+  function handleLotteryTypeChange(value: LotteryType) {
+    const nextSearch = buildLotterySearch(value);
+    const isExpectRoute = location.pathname === "/expects" || location.pathname.startsWith("/expects/");
+
+    navigate(
+      {
+        pathname: isExpectRoute ? "/expects" : location.pathname,
+        search: nextSearch
+      },
+      { replace: true }
+    );
+  }
+
+  const lotterySearch = buildLotterySearch(lotteryType);
   const expectLink = latestExpect ? `/expects/${latestExpect}${lotterySearch}` : `/expects${lotterySearch}`;
   const expectLabel = latestExpect ? `${latestExpect}期` : "当前期数";
 
@@ -83,7 +98,7 @@ export function UserLayout() {
                 { label: LOTTERY_LABELS.macau, value: "macau" },
                 { label: LOTTERY_LABELS.hongkong, value: "hongkong" }
               ]}
-              onChange={setLotteryType}
+              onChange={handleLotteryTypeChange}
             />
           </div>
         </div>

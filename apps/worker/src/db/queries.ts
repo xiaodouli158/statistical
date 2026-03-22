@@ -530,27 +530,47 @@ export async function getLatestExpectForAccount(env: Env, account: string, lotte
 export async function listAdminMailRecords(
   env: Env,
   account: string,
-  lotteryType: LotteryType
+  lotteryType: LotteryType,
+  expect?: string
 ): Promise<AdminMailRecordListItem[]> {
-  const rows = await all<MailRecordRow & { has_draw_result: number; is_latest_snapshot: number }>(
-    env.DB.prepare(
-      `SELECT
-         records.*,
-         CASE WHEN draws.expect IS NULL THEN 0 ELSE 1 END AS has_draw_result,
-         CASE WHEN snapshots.id = records.id THEN 1 ELSE 0 END AS is_latest_snapshot
-       FROM mail_records AS records
-       LEFT JOIN draw_results AS draws
-         ON draws.expect = records.expect
-        AND draws.lottery_type = records.lottery_type
-       LEFT JOIN expect_snapshots AS snapshots
-         ON snapshots.account = records.account
-        AND snapshots.lottery_type = records.lottery_type
-        AND snapshots.expect = records.expect
-       WHERE records.account = ?
-         AND records.lottery_type = ?
-       ORDER BY records.expect DESC, records.received_at DESC, records.id DESC`
-    ).bind(account, lotteryType)
-  );
+  const statement = expect
+    ? env.DB.prepare(
+        `SELECT
+           records.*,
+           CASE WHEN draws.expect IS NULL THEN 0 ELSE 1 END AS has_draw_result,
+           CASE WHEN snapshots.id = records.id THEN 1 ELSE 0 END AS is_latest_snapshot
+         FROM mail_records AS records
+         LEFT JOIN draw_results AS draws
+           ON draws.expect = records.expect
+          AND draws.lottery_type = records.lottery_type
+         LEFT JOIN expect_snapshots AS snapshots
+           ON snapshots.account = records.account
+          AND snapshots.lottery_type = records.lottery_type
+          AND snapshots.expect = records.expect
+         WHERE records.account = ?
+           AND records.lottery_type = ?
+           AND records.expect = ?
+         ORDER BY records.expect DESC, records.received_at DESC, records.id DESC`
+      ).bind(account, lotteryType, expect)
+    : env.DB.prepare(
+        `SELECT
+           records.*,
+           CASE WHEN draws.expect IS NULL THEN 0 ELSE 1 END AS has_draw_result,
+           CASE WHEN snapshots.id = records.id THEN 1 ELSE 0 END AS is_latest_snapshot
+         FROM mail_records AS records
+         LEFT JOIN draw_results AS draws
+           ON draws.expect = records.expect
+          AND draws.lottery_type = records.lottery_type
+         LEFT JOIN expect_snapshots AS snapshots
+           ON snapshots.account = records.account
+          AND snapshots.lottery_type = records.lottery_type
+          AND snapshots.expect = records.expect
+         WHERE records.account = ?
+           AND records.lottery_type = ?
+         ORDER BY records.expect DESC, records.received_at DESC, records.id DESC`
+      ).bind(account, lotteryType);
+
+  const rows = await all<MailRecordRow & { has_draw_result: number; is_latest_snapshot: number }>(statement);
 
   return rows.map((row) => ({
     ...toMailRecordMeta(row, Boolean(row.is_latest_snapshot)),

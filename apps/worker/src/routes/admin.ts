@@ -147,12 +147,13 @@ adminRoutes.get("/data/expects", requireAuth("admin"), async (c) => {
 adminRoutes.get("/data/records", requireAuth("admin"), async (c) => {
   const account = c.req.query("account");
   const lotteryType = normalizeLotteryType(c.req.query("lottery"));
+  const expect = c.req.query("expect") ?? undefined;
 
   if (!account) {
     return c.json({ error: "Missing account" }, 400);
   }
 
-  return c.json(await listAdminMailRecords(c.env, account, lotteryType));
+  return c.json(await listAdminMailRecords(c.env, account, lotteryType, expect));
 });
 
 adminRoutes.get("/data/expects/:expect", requireAuth("admin"), async (c) => {

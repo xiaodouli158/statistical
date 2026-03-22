@@ -61,10 +61,16 @@ export async function getAdminExpects(account: string, lotteryType: LotteryType)
   );
 }
 
-export async function getAdminMailRecords(account: string, lotteryType: LotteryType): Promise<AdminMailRecordListItem[]> {
-  return apiFetch<AdminMailRecordListItem[]>(
-    `/api/admin/data/records?account=${encodeURIComponent(account)}&lottery=${encodeURIComponent(lotteryType)}`
-  );
+export async function getAdminMailRecords(account: string, lotteryType: LotteryType, expect?: string): Promise<AdminMailRecordListItem[]> {
+  const query = new URLSearchParams();
+  query.set("account", account);
+  query.set("lottery", lotteryType);
+
+  if (expect) {
+    query.set("expect", expect);
+  }
+
+  return apiFetch<AdminMailRecordListItem[]>(`/api/admin/data/records?${query.toString()}`);
 }
 
 export async function getAdminExpectDetail(account: string, expect: string, lotteryType: LotteryType): Promise<AdminExpectDetailResponse> {
