@@ -3,12 +3,13 @@ import { LOTTERY_LABELS, type LotteryType } from "@statisticalsystem/shared";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { SegmentedControl } from "../components/SegmentedControl";
 import { useLotteryType } from "../hooks/useLotteryType";
-import { getUserMe, logoutUser } from "../services/user";
+import { getUserExpects, getUserMe, logoutUser } from "../services/user";
 
 export function UserLayout() {
   const navigate = useNavigate();
   const { lotteryType, lotterySearch, setLotteryType } = useLotteryType();
   const [username, setUsername] = useState("");
+  const [latestExpect, setLatestExpect] = useState<string | null>(null);
 
   useEffect(() => {
     let mounted = true;
@@ -34,10 +35,33 @@ export function UserLayout() {
     };
   }, []);
 
+  useEffect(() => {
+    let mounted = true;
+
+    getUserExpects(lotteryType)
+      .then((items) => {
+        if (mounted) {
+          setLatestExpect(items[0]?.expect ?? null);
+        }
+      })
+      .catch(() => {
+        if (mounted) {
+          setLatestExpect(null);
+        }
+      });
+
+    return () => {
+      mounted = false;
+    };
+  }, [lotteryType]);
+
   async function handleLogout() {
     await logoutUser();
     navigate("/login", { replace: true });
   }
+
+  const expectLink = latestExpect ? `/expects/${latestExpect}${lotterySearch}` : `/expects${lotterySearch}`;
+  const expectLabel = latestExpect ? `${latestExpect}期` : "当前期数";
 
   return (
     <div className="shell">
@@ -64,8 +88,8 @@ export function UserLayout() {
           </div>
         </div>
         <nav className="nav-list">
-          <NavLink className="nav-link" to={{ pathname: "/expects", search: lotterySearch }}>
-            历史期数
+          <NavLink className="nav-link" to={expectLink}>
+            {expectLabel}
           </NavLink>
           <NavLink className="nav-link" to={{ pathname: "/help", search: lotterySearch }}>
             投注帮助

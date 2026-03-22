@@ -1,4 +1,5 @@
 import type {
+  AdminMailRecordListItem,
   AdminDataResponse,
   AdminExpectDetailResponse,
   LoginRequest,
@@ -60,10 +61,20 @@ export async function getAdminExpects(account: string, lotteryType: LotteryType)
   );
 }
 
+export async function getAdminMailRecords(account: string, lotteryType: LotteryType): Promise<AdminMailRecordListItem[]> {
+  return apiFetch<AdminMailRecordListItem[]>(
+    `/api/admin/data/records?account=${encodeURIComponent(account)}&lottery=${encodeURIComponent(lotteryType)}`
+  );
+}
+
 export async function getAdminExpectDetail(account: string, expect: string, lotteryType: LotteryType): Promise<AdminExpectDetailResponse> {
   return apiFetch<AdminExpectDetailResponse>(
     `/api/admin/data/expects/${encodeURIComponent(expect)}?account=${encodeURIComponent(account)}&lottery=${encodeURIComponent(lotteryType)}`
   );
+}
+
+export async function getAdminMailRecordDetail(recordId: string): Promise<AdminExpectDetailResponse> {
+  return apiFetch<AdminExpectDetailResponse>(`/api/admin/data/records/${encodeURIComponent(recordId)}`);
 }
 
 export async function syncAdminDraw(lotteryType: LotteryType, expect?: string): Promise<void> {

@@ -3,7 +3,17 @@ import { normalizeLotteryType, type LoginRequest, type LoginResponse, type Upser
 import { clearSession, persistSession, requireAuth } from "../auth/guard";
 import { hashPassword, verifyPassword } from "../auth/password";
 import { generateSessionToken, sha256 } from "../auth/session";
-import { createUser, getAdminData, getAdminExpectDetail, getUserByUsername, listExpectsForAccount, listUsers, updateUser } from "../db/queries";
+import {
+  createUser,
+  getAdminData,
+  getAdminExpectDetail,
+  getAdminMailRecordDetail,
+  getUserByUsername,
+  listAdminMailRecords,
+  listExpectsForAccount,
+  listUsers,
+  updateUser
+} from "../db/queries";
 import type { AppVariables, Env } from "../db/types";
 import { syncDrawOnce } from "../draw/fetch";
 
@@ -16,17 +26,17 @@ adminRoutes.post("/login", async (c) => {
   const body = await c.req.json<LoginRequest>().catch(() => null);
 
   if (!body?.username || !body.password) {
-    return c.json({ error: "用户名和密码不能为空" }, 400);
+    return c.json({ error: "Username and password are required" }, 400);
   }
 
   const user = await getUserByUsername(c.env, body.username);
 
   if (!user || user.role !== "admin") {
-    return c.json({ error: "账号或密码错误" }, 401);
+    return c.json({ error: "Invalid username or password" }, 401);
   }
 
   if (user.status !== "active" || user.isExpired) {
-    return c.json({ error: "账号不可用" }, 403);
+    return c.json({ error: "Account is not accessible" }, 403);
   }
 
   let valid = false;
@@ -42,7 +52,7 @@ adminRoutes.post("/login", async (c) => {
   }
 
   if (!valid) {
-    return c.json({ error: "账号或密码错误" }, 401);
+    return c.json({ error: "Invalid username or password" }, 401);
   }
 
   const token = await generateSessionToken();
@@ -79,7 +89,7 @@ adminRoutes.post("/users", requireAuth("admin"), async (c) => {
   const body = await c.req.json<UpsertUserRequest>().catch(() => null);
 
   if (!body?.username) {
-    return c.json({ error: "缺少邮箱账号" }, 400);
+    return c.json({ error: "Username is required" }, 400);
   }
 
   try {
@@ -101,7 +111,7 @@ adminRoutes.put("/users/:id", requireAuth("admin"), async (c) => {
   const body = await c.req.json<UpsertUserRequest>().catch(() => null);
 
   if (!body?.username) {
-    return c.json({ error: "缺少邮箱账号" }, 400);
+    return c.json({ error: "Username is required" }, 400);
   }
 
   try {
@@ -114,7 +124,7 @@ adminRoutes.put("/users/:id", requireAuth("admin"), async (c) => {
     });
 
     if (!user) {
-      return c.json({ error: "用户不存在" }, 404);
+      return c.json({ error: "User not found" }, 404);
     }
 
     return c.json(user);
@@ -128,10 +138,21 @@ adminRoutes.get("/data/expects", requireAuth("admin"), async (c) => {
   const lotteryType = normalizeLotteryType(c.req.query("lottery"));
 
   if (!account) {
-    return c.json({ error: "缺少编号" }, 400);
+    return c.json({ error: "Missing account" }, 400);
   }
 
   return c.json(await listExpectsForAccount(c.env, account, lotteryType));
+});
+
+adminRoutes.get("/data/records", requireAuth("admin"), async (c) => {
+  const account = c.req.query("account");
+  const lotteryType = normalizeLotteryType(c.req.query("lottery"));
+
+  if (!account) {
+    return c.json({ error: "Missing account" }, 400);
+  }
+
+  return c.json(await listAdminMailRecords(c.env, account, lotteryType));
 });
 
 adminRoutes.get("/data/expects/:expect", requireAuth("admin"), async (c) => {
@@ -139,13 +160,23 @@ adminRoutes.get("/data/expects/:expect", requireAuth("admin"), async (c) => {
   const lotteryType = normalizeLotteryType(c.req.query("lottery"));
 
   if (!account) {
-    return c.json({ error: "缺少编号" }, 400);
+    return c.json({ error: "Missing account" }, 400);
   }
 
   const detail = await getAdminExpectDetail(c.env, account, lotteryType, c.req.param("expect"));
 
   if (!detail) {
-    return c.json({ error: "数据不存在" }, 404);
+    return c.json({ error: "Data not found" }, 404);
+  }
+
+  return c.json(detail);
+});
+
+adminRoutes.get("/data/records/:recordId", requireAuth("admin"), async (c) => {
+  const detail = await getAdminMailRecordDetail(c.env, c.req.param("recordId"));
+
+  if (!detail) {
+    return c.json({ error: "Data not found" }, 404);
   }
 
   return c.json(detail);
@@ -157,7 +188,7 @@ adminRoutes.get("/data", requireAuth("admin"), async (c) => {
   const lotteryType = normalizeLotteryType(c.req.query("lottery"));
 
   if (!account || !expect) {
-    return c.json({ error: "缺少编号或期数" }, 400);
+    return c.json({ error: "Missing account or expect" }, 400);
   }
 
   return c.json(await getAdminData(c.env, account, expect, lotteryType));

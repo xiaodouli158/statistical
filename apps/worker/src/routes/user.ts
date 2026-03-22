@@ -3,7 +3,7 @@ import { normalizeLotteryType, type LoginRequest, type LoginResponse } from "@st
 import { clearSession, persistSession, requireAuth } from "../auth/guard";
 import { verifyPassword } from "../auth/password";
 import { generateSessionToken, sha256 } from "../auth/session";
-import { getExpectDetail, getUserByUsername, listExpectsForAccount } from "../db/queries";
+import { getExpectDetail, getLatestExpectForAccount, getUserByUsername } from "../db/queries";
 import type { AppVariables, Env } from "../db/types";
 
 const userRoutes = new Hono<{ Bindings: Env; Variables: AppVariables }>();
@@ -64,7 +64,8 @@ userRoutes.get("/me", requireAuth("user"), async (c) => {
 userRoutes.get("/expects", requireAuth("user"), async (c) => {
   const sessionUser = c.get("sessionUser");
   const lotteryType = normalizeLotteryType(c.req.query("lottery"));
-  return c.json(await listExpectsForAccount(c.env, sessionUser.account, lotteryType));
+  const latestExpect = await getLatestExpectForAccount(c.env, sessionUser.account, lotteryType);
+  return c.json(latestExpect ? [latestExpect] : []);
 });
 
 userRoutes.get("/expects/:expect", requireAuth("user"), async (c) => {

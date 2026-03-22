@@ -1,18 +1,20 @@
 import { useEffect, useState } from "react";
 import { LOTTERY_LABELS, type UserExpectListItem } from "@statisticalsystem/shared";
+import { useNavigate } from "react-router-dom";
 import { LoadingScreen } from "../../components/LoadingScreen";
-import { ExpectListPanel } from "../../features/expect-list/components/ExpectListPanel";
+import { Panel } from "../../components/Panel";
 import { useLotteryType } from "../../hooks/useLotteryType";
 import { getUserExpects } from "../../services/user";
 
 export function ExpectsPage() {
+  const navigate = useNavigate();
   const { lotteryType, lotterySearch } = useLotteryType();
   const [state, setState] = useState<{
-    data: UserExpectListItem[];
+    latest: UserExpectListItem | null;
     loading: boolean;
     error: string | null;
   }>({
-    data: [],
+    latest: null,
     loading: true,
     error: null
   });
@@ -22,20 +24,29 @@ export function ExpectsPage() {
 
     getUserExpects(lotteryType)
       .then((data) => {
-        if (mounted) {
-          setState({ data, loading: false, error: null });
+        if (!mounted) {
+          return;
         }
+
+        const latest = data[0] ?? null;
+
+        if (latest) {
+          navigate(`/expects/${latest.expect}${lotterySearch}`, { replace: true });
+          return;
+        }
+
+        setState({ latest: null, loading: false, error: null });
       })
       .catch((error: Error) => {
         if (mounted) {
-          setState({ data: [], loading: false, error: error.message });
+          setState({ latest: null, loading: false, error: error.message });
         }
       });
 
     return () => {
       mounted = false;
     };
-  }, [lotteryType]);
+  }, [lotteryType, lotterySearch, navigate]);
 
   if (state.loading) {
     return <LoadingScreen />;
@@ -46,17 +57,13 @@ export function ExpectsPage() {
       <header className="page-header">
         <div>
           <span className="brand__eyebrow">{LOTTERY_LABELS[lotteryType]}</span>
-          <h1>我的结算记录</h1>
+          <h1>当前结算</h1>
         </div>
       </header>
 
-      <ExpectListPanel
-        title={`${LOTTERY_LABELS[lotteryType]}期数列表`}
-        items={state.data}
-        error={state.error}
-        emptyText="暂无结算记录"
-        buildHref={(item) => `/expects/${item.expect}${lotterySearch}`}
-      />
+      <Panel title={`${LOTTERY_LABELS[lotteryType]} 当前期数`}>
+        {state.error ? <p className="error-text">{state.error}</p> : <p className="muted">暂无结算记录</p>}
+      </Panel>
     </div>
   );
 }

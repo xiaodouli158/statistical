@@ -3,6 +3,8 @@ import type {
   ExpectComputeCacheRecord,
   ExpectDetailComputed,
   LotteryType,
+  MailRecord,
+  MailRecordMeta,
   SessionUser,
   SnapshotMeta,
   SnapshotRecord,
@@ -49,6 +51,19 @@ export type SnapshotRow = {
   message_chunks_json: string;
   created_at: string;
   updated_at: string;
+};
+
+export type MailRecordRow = {
+  id: string;
+  account: string;
+  lottery_type: LotteryType;
+  expect: string;
+  received_at: string;
+  mail_from: string | null;
+  mail_subject: string | null;
+  raw_body: string;
+  message_chunks_json: string;
+  created_at: string;
 };
 
 export type DrawRow = {
@@ -128,6 +143,34 @@ export function toSnapshotMeta(row: SnapshotRow): SnapshotMeta {
     receivedAt: row.received_at,
     mailFrom: row.mail_from,
     mailSubject: row.mail_subject
+  };
+}
+
+export function toMailRecord(row: MailRecordRow | SnapshotRow, isLatestSnapshot: boolean): MailRecord {
+  return {
+    id: row.id,
+    account: row.account,
+    lotteryType: row.lottery_type,
+    expect: row.expect,
+    receivedAt: row.received_at,
+    mailFrom: row.mail_from,
+    mailSubject: row.mail_subject,
+    rawBody: row.raw_body,
+    messageChunks: JSON.parse(row.message_chunks_json) as string[],
+    isLatestSnapshot
+  };
+}
+
+export function toMailRecordMeta(row: MailRecordRow | SnapshotRow, isLatestSnapshot: boolean): MailRecordMeta {
+  return {
+    id: row.id,
+    account: row.account,
+    lotteryType: row.lottery_type,
+    expect: row.expect,
+    receivedAt: row.received_at,
+    mailFrom: row.mail_from,
+    mailSubject: row.mail_subject,
+    isLatestSnapshot
   };
 }
 

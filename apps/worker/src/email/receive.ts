@@ -1,7 +1,7 @@
 import PostalMime from "postal-mime";
 import type { LotteryType } from "@statisticalsystem/shared";
 import type { Env } from "../db/types";
-import { getActiveMailUserBySender, refreshExpectComputeCacheForAccount, upsertSnapshot } from "../db/queries";
+import { getActiveMailUserBySender, insertMailRecord, refreshExpectComputeCacheForAccount, upsertSnapshot } from "../db/queries";
 import { normalizeEmailAddress } from "../utils/strings";
 import { cleanMailBody } from "./clean";
 import { detectExpect } from "./detect-expect";
@@ -67,8 +67,22 @@ export async function handleEmail(message: ForwardableEmailMessage, env: Env): P
   const receivedAt = new Date();
   const messageChunks = cleanMailBody(body);
   const expect = detectExpect(parsed.subject, body, receivedAt, lotteryType);
+  const recordId = crypto.randomUUID();
+
+  await insertMailRecord(env, {
+    id: recordId,
+    account: user.account,
+    lotteryType,
+    expect,
+    receivedAt: receivedAt.toISOString(),
+    mailFrom: senderEmail,
+    mailSubject: parsed.subject,
+    rawBody: body,
+    messageChunks
+  });
 
   await upsertSnapshot(env, {
+    id: recordId,
     account: user.account,
     lotteryType,
     expect,

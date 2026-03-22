@@ -1,10 +1,12 @@
 import type {
+  AdminMailRecordListItem,
   AdminDataResponse,
   AdminExpectDetailResponse,
   DrawResultRecord,
   ExpectDetailComputed,
   ExpectDetailResponse,
   LotteryType,
+  MailRecord,
   SessionUser,
   SnapshotRecord,
   UpsertUserRequest,
@@ -14,13 +16,24 @@ import type {
 import { buildNumberBars, buildSummaryMetrics, normalizeDrawResult, parseOrders, resolveOddsConfig, settleOrders } from "@statisticalsystem/parser";
 import { normalizeEmailAddress } from "../utils/strings";
 import { formatNowIso, getBeijingDateString, normalizeMemberExpiresOn } from "../utils/time";
-import type { DrawRow, Env, ExpectComputeCacheRow, SessionRow, SnapshotRow, UserRow } from "./types";
-import { toDrawRecord, toExpectComputeCacheRecord, toExpectDetailComputed, toSnapshotMeta, toSnapshotRecord, toUserRecord } from "./types";
+import type { DrawRow, Env, ExpectComputeCacheRow, MailRecordRow, SessionRow, SnapshotRow, UserRow } from "./types";
+import {
+  toDrawRecord,
+  toExpectComputeCacheRecord,
+  toExpectDetailComputed,
+  toMailRecord,
+  toMailRecordMeta,
+  toSnapshotMeta,
+  toSnapshotRecord,
+  toUserRecord
+} from "./types";
 
 const HIDDEN_SYSTEM_ACCOUNT = "c0000";
 const PROTECTED_ADMIN_ACCOUNTS = new Set(["c0000", "c0001"]);
 const EXPECT_COMPUTE_PARSER_VERSION = "v1";
 const ORDER_ODDS_CONFIG = resolveOddsConfig();
+
+type ExpectSource = Pick<SnapshotRecord, "messageChunks" | "receivedAt">;
 
 async function first<T>(statement: D1PreparedStatement): Promise<T | null> {
   return (await statement.first<T>()) ?? null;
@@ -90,7 +103,7 @@ async function generateNextAccountCode(env: Env): Promise<string> {
   return `c${String(nextValue).padStart(4, "0")}`;
 }
 
-function buildExpectDetailComputed(snapshot: SnapshotRecord, drawResult: DrawResultRecord | null): ExpectDetailComputed {
+function buildExpectDetailComputed(snapshot: ExpectSource, drawResult: DrawResultRecord | null): ExpectDetailComputed {
   const normalizedDrawResult = normalizeDrawResult(drawResult);
   const parsed = parseOrders(snapshot.messageChunks, normalizedDrawResult?.openTime ?? snapshot.receivedAt, ORDER_ODDS_CONFIG);
   const settledOrders = settleOrders(parsed.orders, normalizedDrawResult);
@@ -118,6 +131,27 @@ async function listSnapshotRowsForExpect(env: Env, lotteryType: LotteryType, exp
   return all<SnapshotRow>(
     env.DB.prepare("SELECT * FROM expect_snapshots WHERE lottery_type = ? AND expect = ? ORDER BY account ASC").bind(lotteryType, expect)
   );
+}
+
+async function getLatestSnapshotRowForAccount(
+  env: Env,
+  account: string,
+  lotteryType: LotteryType
+): Promise<SnapshotRow | null> {
+  return first<SnapshotRow>(
+    env.DB.prepare(
+      `SELECT *
+       FROM expect_snapshots
+       WHERE account = ?
+         AND lottery_type = ?
+       ORDER BY expect DESC, received_at DESC
+       LIMIT 1`
+    ).bind(account, lotteryType)
+  );
+}
+
+async function getMailRecordRowById(env: Env, id: string): Promise<MailRecordRow | null> {
+  return first<MailRecordRow>(env.DB.prepare("SELECT * FROM mail_records WHERE id = ? LIMIT 1").bind(id));
 }
 
 async function getDrawRowForExpect(env: Env, lotteryType: LotteryType, expect: string): Promise<DrawRow | null> {
@@ -205,6 +239,23 @@ function buildExpectDetailResponse(
   return {
     lotteryType: snapshotRow.lottery_type,
     snapshot: toSnapshotMeta(snapshotRow),
+    drawResult: drawRow ? toDrawRecord(drawRow) : null,
+    computed
+  };
+}
+
+function buildAdminDetailResponse(record: MailRecord, drawRow: DrawRow | null, computed: ExpectDetailComputed): ExpectDetailResponse {
+  return {
+    lotteryType: record.lotteryType,
+    snapshot: {
+      id: record.id,
+      account: record.account,
+      lotteryType: record.lotteryType,
+      expect: record.expect,
+      receivedAt: record.receivedAt,
+      mailFrom: record.mailFrom,
+      mailSubject: record.mailSubject
+    },
     drawResult: drawRow ? toDrawRecord(drawRow) : null,
     computed
   };
@@ -427,6 +478,86 @@ export async function listExpectsForAccount(env: Env, account: string, lotteryTy
   }));
 }
 
+export async function getLatestExpectForAccount(env: Env, account: string, lotteryType: LotteryType): Promise<UserExpectListItem | null> {
+  const row = await first<{
+    expect: string;
+    received_at: string;
+    has_draw_result: number;
+    lottery_type: LotteryType;
+    order_count: number | null;
+    win_amount: number | null;
+    profit: number | null;
+  }>(
+    env.DB.prepare(
+      `SELECT
+         snapshots.expect,
+         snapshots.received_at,
+         snapshots.lottery_type,
+         CASE WHEN draws.expect IS NULL THEN 0 ELSE 1 END AS has_draw_result,
+         compute.order_count,
+         compute.win_amount,
+         compute.profit
+       FROM expect_snapshots AS snapshots
+       LEFT JOIN draw_results AS draws
+         ON draws.expect = snapshots.expect
+        AND draws.lottery_type = snapshots.lottery_type
+       LEFT JOIN expect_compute_cache AS compute
+         ON compute.account = snapshots.account
+        AND compute.lottery_type = snapshots.lottery_type
+        AND compute.expect = snapshots.expect
+       WHERE snapshots.account = ?
+         AND snapshots.lottery_type = ?
+       ORDER BY snapshots.expect DESC, snapshots.received_at DESC
+       LIMIT 1`
+    ).bind(account, lotteryType)
+  );
+
+  if (!row) {
+    return null;
+  }
+
+  return {
+    lotteryType: row.lottery_type,
+    expect: row.expect,
+    receivedAt: row.received_at,
+    hasDrawResult: Boolean(row.has_draw_result),
+    orderCount: row.order_count ?? 0,
+    winAmount: row.win_amount,
+    profit: row.profit
+  };
+}
+
+export async function listAdminMailRecords(
+  env: Env,
+  account: string,
+  lotteryType: LotteryType
+): Promise<AdminMailRecordListItem[]> {
+  const rows = await all<MailRecordRow & { has_draw_result: number; is_latest_snapshot: number }>(
+    env.DB.prepare(
+      `SELECT
+         records.*,
+         CASE WHEN draws.expect IS NULL THEN 0 ELSE 1 END AS has_draw_result,
+         CASE WHEN snapshots.id = records.id THEN 1 ELSE 0 END AS is_latest_snapshot
+       FROM mail_records AS records
+       LEFT JOIN draw_results AS draws
+         ON draws.expect = records.expect
+        AND draws.lottery_type = records.lottery_type
+       LEFT JOIN expect_snapshots AS snapshots
+         ON snapshots.account = records.account
+        AND snapshots.lottery_type = records.lottery_type
+        AND snapshots.expect = records.expect
+       WHERE records.account = ?
+         AND records.lottery_type = ?
+       ORDER BY records.expect DESC, records.received_at DESC, records.id DESC`
+    ).bind(account, lotteryType)
+  );
+
+  return rows.map((row) => ({
+    ...toMailRecordMeta(row, Boolean(row.is_latest_snapshot)),
+    hasDrawResult: Boolean(row.has_draw_result)
+  }));
+}
+
 export async function getSnapshotForAccountExpect(env: Env, account: string, lotteryType: LotteryType, expect: string): Promise<SnapshotRecord | null> {
   const row = await getSnapshotRowForAccountExpect(env, account, lotteryType, expect);
   return row ? toSnapshotRecord(row) : null;
@@ -481,7 +612,33 @@ export async function getAdminExpectDetail(
 
   return {
     ...buildExpectDetailResponse(snapshotRow, drawRow, computed),
-    rawSnapshot: toSnapshotRecord(snapshotRow),
+    rawRecord: toMailRecord(snapshotRow, true),
+    computeCache: computeCacheRow ? toExpectComputeCacheRecord(computeCacheRow) : null
+  };
+}
+
+export async function getAdminMailRecordDetail(env: Env, recordId: string): Promise<AdminExpectDetailResponse | null> {
+  const recordRow = await getMailRecordRowById(env, recordId);
+
+  if (!recordRow) {
+    return null;
+  }
+
+  const [latestSnapshotRow, drawRow] = await Promise.all([
+    getSnapshotRowForAccountExpect(env, recordRow.account, recordRow.lottery_type, recordRow.expect),
+    getDrawRowForExpect(env, recordRow.lottery_type, recordRow.expect)
+  ]);
+  const isLatestSnapshot = latestSnapshotRow?.id === recordRow.id;
+  const record = toMailRecord(recordRow, isLatestSnapshot);
+  const computed = buildExpectDetailComputed(record, drawRow ? toDrawRecord(drawRow) : null);
+  const computeCacheRow =
+    isLatestSnapshot && latestSnapshotRow
+      ? await getExpectComputeCacheRow(env, recordRow.account, recordRow.lottery_type, recordRow.expect)
+      : null;
+
+  return {
+    ...buildAdminDetailResponse(record, drawRow, computed),
+    rawRecord: record,
     computeCache: computeCacheRow ? toExpectComputeCacheRecord(computeCacheRow) : null
   };
 }
@@ -513,6 +670,7 @@ export async function refreshExpectComputeCacheForExpect(env: Env, lotteryType: 
 }
 
 export async function upsertSnapshot(env: Env, input: {
+  id: string;
   account: string;
   lotteryType: LotteryType;
   expect: string;
@@ -531,16 +689,18 @@ export async function upsertSnapshot(env: Env, input: {
       )
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       ON CONFLICT(account, lottery_type, expect) DO UPDATE SET
+        id = excluded.id,
         received_at = excluded.received_at,
         mail_from = excluded.mail_from,
         mail_subject = excluded.mail_subject,
         raw_body = excluded.raw_body,
         message_chunks_json = excluded.message_chunks_json,
+        created_at = excluded.created_at,
         updated_at = excluded.updated_at
       WHERE excluded.received_at >= expect_snapshots.received_at`
   )
     .bind(
-      crypto.randomUUID(),
+      input.id,
       input.account,
       input.lotteryType,
       input.expect,
@@ -550,6 +710,41 @@ export async function upsertSnapshot(env: Env, input: {
       input.rawBody,
       JSON.stringify(input.messageChunks),
       now,
+      now
+    )
+    .run();
+}
+
+export async function insertMailRecord(env: Env, input: {
+  id: string;
+  account: string;
+  lotteryType: LotteryType;
+  expect: string;
+  receivedAt: string;
+  mailFrom: string | null;
+  mailSubject: string | null;
+  rawBody: string;
+  messageChunks: string[];
+}): Promise<void> {
+  const now = formatNowIso();
+
+  await env.DB.prepare(
+    `INSERT INTO mail_records (
+        id, account, lottery_type, expect, received_at, mail_from, mail_subject,
+        raw_body, message_chunks_json, created_at
+      )
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+  )
+    .bind(
+      input.id,
+      input.account,
+      input.lotteryType,
+      input.expect,
+      input.receivedAt,
+      input.mailFrom,
+      input.mailSubject,
+      input.rawBody,
+      JSON.stringify(input.messageChunks),
       now
     )
     .run();

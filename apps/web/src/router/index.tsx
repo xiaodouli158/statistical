@@ -71,7 +71,7 @@ export const router = createBrowserRouter([
                 element: <AdminDataViewerPage />
               },
               {
-                path: "data/:account/:expect",
+                path: "data/records/:recordId",
                 element: <AdminDataDetailPage />
               }
             ]

@@ -36,6 +36,30 @@ export type SnapshotMeta = {
   mailSubject: string | null;
 };
 
+export type MailRecord = {
+  id: string;
+  account: string;
+  lotteryType: LotteryType;
+  expect: string;
+  receivedAt: string;
+  mailFrom: string | null;
+  mailSubject: string | null;
+  rawBody: string;
+  messageChunks: string[];
+  isLatestSnapshot: boolean;
+};
+
+export type MailRecordMeta = {
+  id: string;
+  account: string;
+  lotteryType: LotteryType;
+  expect: string;
+  receivedAt: string;
+  mailFrom: string | null;
+  mailSubject: string | null;
+  isLatestSnapshot: boolean;
+};
+
 export type DrawResultRecord = {
   lotteryType: LotteryType;
   expect: string;
@@ -176,6 +200,10 @@ export type UserExpectListItem = {
   hasDrawResult: boolean;
 };
 
+export type AdminMailRecordListItem = MailRecordMeta & {
+  hasDrawResult: boolean;
+};
+
 export type ExpectDetailViewResponse = {
   lotteryType: LotteryType;
   snapshot: SnapshotMeta;
@@ -186,7 +214,7 @@ export type ExpectDetailViewResponse = {
 export type ExpectDetailResponse = ExpectDetailViewResponse;
 
 export type AdminExpectDetailResponse = ExpectDetailViewResponse & {
-  rawSnapshot: SnapshotRecord;
+  rawRecord: MailRecord;
   computeCache: ExpectComputeCacheRecord | null;
 };
 
