@@ -294,6 +294,91 @@ function shouldIgnoreChunk(chunk: string): boolean {
   return IGNORED_CHUNK_PATTERNS.some((pattern) => pattern.test(chunk));
 }
 
+const MAX_PENDING_CONTENT_CHUNKS = 4;
+
+function hasRecognizedContentForMerge(subject: string, referenceDate: string | null | undefined): boolean {
+  const { subject: normalizedSubject } = extractPlayType(subject);
+
+  if (!normalizedSubject) {
+    return false;
+  }
+
+  return (
+    resolveTemaSubject(normalizedSubject, referenceDate).hasRecognizedContent ||
+    extractZodiacs(normalizedSubject).length > 0 ||
+    extractTails(normalizedSubject).length > 0
+  );
+}
+
+function classifyChunkForMerge(chunk: string, referenceDate: string | null | undefined): "ignored" | "content" | "priced" | "other" {
+  if (!chunk || shouldIgnoreChunk(chunk)) {
+    return "ignored";
+  }
+
+  const markerMatch = findMarker(chunk);
+
+  if (!markerMatch) {
+    return hasRecognizedContentForMerge(chunk, referenceDate) ? "content" : "other";
+  }
+
+  const rawSubject = chunk.slice(0, markerMatch.index).trim().replace(/[,/]+$/, "");
+  const priceEnd = findPriceEnd(chunk, markerMatch.index + markerMatch.marker.length);
+
+  if (priceEnd > markerMatch.index + markerMatch.marker.length) {
+    return "priced";
+  }
+
+  return hasRecognizedContentForMerge(rawSubject, referenceDate) ? "content" : "other";
+}
+
+function mergeRelatedChunks(messageChunks: string[], referenceDate: string | null | undefined): string[] {
+  const merged: string[] = [];
+  let pendingContent: string[] = [];
+
+  function flushPendingContent(): void {
+    if (pendingContent.length > 0) {
+      merged.push(...pendingContent);
+      pendingContent = [];
+    }
+  }
+
+  for (const rawChunk of messageChunks) {
+    const chunk = normalizeChunk(rawChunk);
+    const kind = classifyChunkForMerge(chunk, referenceDate);
+
+    if (kind === "ignored") {
+      flushPendingContent();
+      continue;
+    }
+
+    if (kind === "content") {
+      if (pendingContent.length >= MAX_PENDING_CONTENT_CHUNKS) {
+        merged.push(pendingContent.shift() ?? chunk);
+      }
+
+      pendingContent.push(chunk);
+      continue;
+    }
+
+    if (kind === "priced") {
+      if (pendingContent.length > 0) {
+        merged.push([...pendingContent, chunk].join(" "));
+        pendingContent = [];
+      } else {
+        merged.push(chunk);
+      }
+
+      continue;
+    }
+
+    flushPendingContent();
+    merged.push(chunk);
+  }
+
+  flushPendingContent();
+  return merged;
+}
+
 function isSlashMarker(marker: Marker): boolean {
   return /^\/+$/.test(marker);
 }
@@ -490,8 +575,9 @@ function parseCandidate(
 export function parseOrders(messageChunks: string[], referenceDate?: string | null, oddsConfig?: OddsConfigInput): ParseOrdersResult {
   const orders: ParsedOrder[] = [];
   const exceptions: OrderException[] = [];
+  const preparedChunks = mergeRelatedChunks(messageChunks, referenceDate);
 
-  for (const chunk of messageChunks) {
+  for (const chunk of preparedChunks) {
     const sourceChunk = normalizeChunk(chunk);
 
     if (!sourceChunk || shouldIgnoreChunk(sourceChunk)) {
