@@ -1,4 +1,13 @@
-import type { DrawResultRecord, ExpectDetailComputed, LotteryType, SessionUser, SnapshotMeta, SnapshotRecord, UserRecord } from "@statisticalsystem/shared";
+import type {
+  DrawResultRecord,
+  ExpectComputeCacheRecord,
+  ExpectDetailComputed,
+  LotteryType,
+  SessionUser,
+  SnapshotMeta,
+  SnapshotRecord,
+  UserRecord
+} from "@statisticalsystem/shared";
 import { isMembershipExpired } from "../utils/time";
 
 export type Env = {
@@ -139,4 +148,24 @@ export function toDrawRecord(row: DrawRow): DrawResultRecord {
 
 export function toExpectDetailComputed(row: ExpectComputeCacheRow): ExpectDetailComputed {
   return JSON.parse(row.computed_json) as ExpectDetailComputed;
+}
+
+export function toExpectComputeCacheRecord(row: ExpectComputeCacheRow): ExpectComputeCacheRecord {
+  return {
+    account: row.account,
+    lotteryType: row.lottery_type,
+    expect: row.expect,
+    parserVersion: row.parser_version,
+    snapshotUpdatedAt: row.snapshot_updated_at,
+    drawUpdatedAt: row.draw_updated_at,
+    computeStatus: row.compute_status,
+    orderCount: row.order_count,
+    exceptionCount: row.exception_count,
+    totalAmount: row.total_amount,
+    winAmount: row.win_amount,
+    profit: row.profit,
+    computed: toExpectDetailComputed(row),
+    createdAt: row.created_at,
+    updatedAt: row.updated_at
+  };
 }

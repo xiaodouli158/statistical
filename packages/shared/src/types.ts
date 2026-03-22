@@ -120,6 +120,24 @@ export type ExpectDetailComputed = {
   numberBarsBase: NumberBarItem[];
 };
 
+export type ExpectComputeCacheRecord = {
+  account: string;
+  lotteryType: LotteryType;
+  expect: string;
+  parserVersion: string;
+  snapshotUpdatedAt: string;
+  drawUpdatedAt: string | null;
+  computeStatus: "parsed" | "settled";
+  orderCount: number;
+  exceptionCount: number;
+  totalAmount: number;
+  winAmount: number | null;
+  profit: number | null;
+  computed: ExpectDetailComputed;
+  createdAt: string;
+  updatedAt: string;
+};
+
 export type UserRecord = {
   id: string;
   username: string;
@@ -169,6 +187,7 @@ export type ExpectDetailResponse = ExpectDetailViewResponse;
 
 export type AdminExpectDetailResponse = ExpectDetailViewResponse & {
   rawSnapshot: SnapshotRecord;
+  computeCache: ExpectComputeCacheRecord | null;
 };
 
 export type AdminDataResponse = {

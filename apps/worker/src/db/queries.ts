@@ -15,7 +15,7 @@ import { buildNumberBars, buildSummaryMetrics, normalizeDrawResult, parseOrders,
 import { normalizeEmailAddress } from "../utils/strings";
 import { formatNowIso, getBeijingDateString, normalizeMemberExpiresOn } from "../utils/time";
 import type { DrawRow, Env, ExpectComputeCacheRow, SessionRow, SnapshotRow, UserRow } from "./types";
-import { toDrawRecord, toExpectDetailComputed, toSnapshotMeta, toSnapshotRecord, toUserRecord } from "./types";
+import { toDrawRecord, toExpectComputeCacheRecord, toExpectDetailComputed, toSnapshotMeta, toSnapshotRecord, toUserRecord } from "./types";
 
 const HIDDEN_SYSTEM_ACCOUNT = "c0000";
 const PROTECTED_ADMIN_ACCOUNTS = new Set(["c0000", "c0001"]);
@@ -477,10 +477,12 @@ export async function getAdminExpectDetail(
 
   const drawRow = await getDrawRowForExpect(env, lotteryType, expect);
   const computed = await ensureExpectComputeCache(env, snapshotRow, drawRow);
+  const computeCacheRow = await getExpectComputeCacheRow(env, account, lotteryType, expect);
 
   return {
     ...buildExpectDetailResponse(snapshotRow, drawRow, computed),
-    rawSnapshot: toSnapshotRecord(snapshotRow)
+    rawSnapshot: toSnapshotRecord(snapshotRow),
+    computeCache: computeCacheRow ? toExpectComputeCacheRecord(computeCacheRow) : null
   };
 }
 
