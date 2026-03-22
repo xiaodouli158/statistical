@@ -3,8 +3,7 @@ import {
   DOMESTIC_ZODIACS,
   WILD_ZODIACS,
   getNumbersForElement,
-  getNumbersForWaveColor,
-  resolveZodiacAnchorYear
+  getNumbersForWaveColor
 } from "@statisticalsystem/shared";
 import { Panel } from "../../../components/Panel";
 
@@ -31,7 +30,7 @@ type TableRow = {
   values: Array<number | null>;
 };
 
-const MULTIPLE_TARGETS = [2, 3, 4, 5, 6, 7] as const;
+const MULTIPLE_TARGETS = [2, 3, 4, 5, 6] as const;
 const MULTIPLE_ROW_COUNTS = Array.from({ length: 13 }, (_, index) => index + 3);
 const DRAG_BANKER_COUNTS = [2, 3, 4, 5, 6] as const;
 const DRAG_TRAILER_COUNTS = Array.from({ length: 9 }, (_, index) => index + 2);
@@ -122,7 +121,6 @@ function combination(count: number, pick: number): number {
 }
 
 function buildReferenceCards(referenceDate: string): ReferenceCard[] {
-  const lunarYear = resolveZodiacAnchorYear(referenceDate);
   return [
     {
       label: `家肖（25个）`,
@@ -147,11 +145,7 @@ function buildReferenceCards(referenceDate: string): ReferenceCard[] {
     ...FIVE_ELEMENTS.map((element) => ({
       label: `${element}（${getNumbersForElement(element, referenceDate).length}个）`,
       value: getNumbersForElement(element, referenceDate).join(",")
-    })),
-    {
-      label: "年份口径",
-      value: `${referenceDate}（农历${lunarYear}年）`
-    }
+    }))
   ];
 }
 
@@ -166,13 +160,13 @@ function buildDragRows(bankers: number): TableRow[] {
   return DRAG_TRAILER_COUNTS.map((trailers) => ({
     label: `${toChineseNumber(bankers)}拖${toChineseNumber(trailers)}`,
     values: MULTIPLE_TARGETS.map((target) => {
-      const picksNeeded = target - bankers;
+      const legPickCount = target - 1;
 
-      if (picksNeeded <= 0 || trailers < picksNeeded) {
+      if (legPickCount <= 0 || trailers < legPickCount) {
         return null;
       }
 
-      return combination(trailers, picksNeeded);
+      return bankers * combination(trailers, legPickCount);
     })
   })).filter((row) => row.values.some((value) => value !== null));
 }
@@ -257,7 +251,6 @@ export function BettingHelpPanel() {
           <span className="eyebrow">金额标记</span>
           <p className="help-panel__text">号码直投支持：{NUMBER_HELP_MARKERS.join("、")}。</p>
           <p className="help-panel__text">生肖直投仅支持：{ZODIAC_HELP_MARKERS.join("、")}。</p>
-          <p className="help-panel__text">组合别名：“野兽”按“野肖”处理，“家畜”按“家肖”处理。</p>
         </div>
 
         <div className="help-panel__section">
