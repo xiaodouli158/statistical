@@ -1,22 +1,37 @@
+const HTML_ENTITY_MAP: Record<string, string> = {
+  "&nbsp;": " ",
+  "&#160;": " ",
+  "&quot;": "\"",
+  "&#34;": "\"",
+  "&apos;": "'",
+  "&#39;": "'",
+  "&lt;": "<",
+  "&gt;": ">",
+  "&amp;": "&"
+};
+
 const PURE_METADATA_PATTERNS = [
   /^Dear[:：]?$/i,
-  /^(?:微信群聊记录如下|微信群聊天记录如下|微信聊天记录如下|群聊记录如下|聊天记录如下)[:：]?$/,
+  /^(?:微信群聊记录如下|微信群聊天记录如下|微信聊天记录如下|群聊记录如下|聊天记录如下|微信群.*的聊天记录如下)[:：]?$/,
   /^第?\s*20\d{5}\s*期?[:：]?$/,
   /^20\d{5}$/,
-  /^\d{4}-\d{2}-\d{2}$/,
-  /^\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2}$/,
+  /^\d{4}-\d{1,2}-\d{1,2}$/,
+  /^\d{4}-\d{1,2}-\d{1,2}\s+\d{2}:\d{2}:\d{2}$/,
   /^[^:：]{1,40}\s+\d{2}:\d{2}(:\d{2})?$/,
-  /^[^:：]{1,40}\s+\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}(:\d{2})?$/,
+  /^[^:：]{1,40}\s+\d{4}-\d{1,2}-\d{1,2}\s+\d{2}:\d{2}(:\d{2})?$/,
+  /^[-—=\s]*\d{4}-\d{1,2}-\d{1,2}[-—=\s]*$/,
   /^-{3,}$/,
-  /^={3,}$/
+  /^={3,}$/,
+  /^[—]{3,}$/
 ];
 
 const LEADING_METADATA_PATTERNS = [
-  /^(?:微信群聊记录如下|微信群聊天记录如下|微信聊天记录如下|群聊记录如下|聊天记录如下)[:：\s-]*/,
+  /^(?:微信群聊记录如下|微信群聊天记录如下|微信聊天记录如下|群聊记录如下|聊天记录如下|微信群.*的聊天记录如下)[:：\s-]*/,
   /^Dear[:：\s-]*/i,
-  /^[^:：]{1,40}\s+\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}(?::\d{2})?(?:[:：\s-]+|$)/,
+  /^[^:：]{1,40}\s+\d{4}-\d{1,2}-\d{1,2}\s+\d{2}:\d{2}(?::\d{2})?(?:[:：\s-]+|$)/,
   /^[^:：]{1,40}\s+\d{2}:\d{2}(?::\d{2})?(?:[:：\s-]+|$)/,
-  /^\d{4}-\d{2}-\d{2}(?:\s+\d{2}:\d{2}(?::\d{2})?)?(?:[:：\s-]+|$)/,
+  /^[-—=\s]*\d{4}-\d{1,2}-\d{1,2}[-—=\s]*(?:[:：\s-]+|$)/,
+  /^\d{4}-\d{1,2}-\d{1,2}(?:\s+\d{2}:\d{2}(?::\d{2})?)?(?:[:：\s-]+|$)/,
   /^第?\s*20\d{5}\s*期?[:：\s-]*/,
   /^20\d{5}[:：\s-]*/
 ];
@@ -24,8 +39,19 @@ const LEADING_METADATA_PATTERNS = [
 const TRAILING_METADATA_PATTERNS = [
   /\s+第?\s*20\d{5}\s*期?[:：]?$/,
   /\s+20\d{5}$/,
-  /\s+\d{4}-\d{2}-\d{2}(?:\s+\d{2}:\d{2}(?::\d{2})?)?$/
+  /\s+\d{4}-\d{1,2}-\d{1,2}(?:\s+\d{2}:\d{2}(?::\d{2})?)?$/,
+  /\s+[-—=\s]*\d{4}-\d{1,2}-\d{1,2}[-—=\s]*$/
 ];
+
+function decodeHtmlEntities(input: string): string {
+  let value = input;
+
+  for (const [entity, decoded] of Object.entries(HTML_ENTITY_MAP)) {
+    value = value.replaceAll(entity, decoded);
+  }
+
+  return value;
+}
 
 function normalizeLine(input: string): string {
   return input.replace(/\s+/g, " ").trim();
@@ -78,7 +104,7 @@ function stripMetadataFragments(line: string): string {
 }
 
 export function cleanMailBody(body: string): string[] {
-  const lines = body.replace(/\r\n/g, "\n").split("\n");
+  const lines = decodeHtmlEntities(body).replace(/\u00A0/g, " ").replace(/\r\n/g, "\n").split("\n");
   const chunks: string[] = [];
   let buffer: string[] = [];
 
