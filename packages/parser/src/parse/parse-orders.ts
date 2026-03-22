@@ -7,7 +7,7 @@ import { normalizeChunk } from "../utils/text";
 import { resolveTemaSubject } from "../utils/tema-filters";
 import { extractZodiacs, getNumbersForZodiac } from "../utils/zodiac";
 
-const PRICE_UNIT_PATTERN = /(米|元|块|塊|斤)$/;
+const PRICE_UNIT_PATTERN = /(米|元|块|塊|斤|闷)$/;
 const SEPARATOR_PATTERN = /[\s,，、。.;；]+/;
 const CHINESE_NUMBER_PATTERN = /[零一二两三四五六七八九十百千]/;
 const SLASH_MARKER_PATTERN = /\/+/g;
