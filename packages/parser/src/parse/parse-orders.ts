@@ -323,7 +323,7 @@ function buildContent(numbers: string[], zodiacs: ZodiacName[], referenceDate: s
 
 function buildResolvedTemaContent(
   subject: string,
-  values: string[],
+  displayValues: string[],
   directNumbers: string[],
   directZodiacs: ZodiacName[],
   referenceDate: string | null | undefined,
@@ -333,7 +333,7 @@ function buildResolvedTemaContent(
     return buildContent(directNumbers, directZodiacs, referenceDate) || subject;
   }
 
-  return values.length > 0 ? `${subject}（${values.join(",")}）` : subject;
+  return displayValues.length > 0 ? `${subject}（${displayValues.join(",")}）` : subject;
 }
 
 function buildException(raw: string, sourceChunk: string, reason: string, index: number): OrderException {
@@ -526,6 +526,7 @@ function parseTemaDirectOrder(
   const numbers = resolvedSubject.directNumbers;
   const zodiacs = resolvedSubject.directZodiacs;
   const values = resolvedSubject.values;
+  const displayValues = resolvedSubject.uniqueValues;
   const { priceRaw, unitPrice } = extractPrice(pricePart);
 
   if (!resolvedSubject.hasRecognizedContent) {
@@ -550,7 +551,7 @@ function parseTemaDirectOrder(
 
   const resolvedOdds = resolveOddsConfig(oddsConfig);
   const content =
-    buildResolvedTemaContent(subject, values, numbers, zodiacs, referenceDate, resolvedSubject.usesFilterGroups) || subject || candidate;
+    buildResolvedTemaContent(subject, displayValues, numbers, zodiacs, referenceDate, resolvedSubject.usesFilterGroups) || subject || candidate;
   const betCount = values.length;
 
   return {

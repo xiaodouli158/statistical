@@ -28,6 +28,7 @@ export type ResolvedTemaSubject = {
   directNumbers: string[];
   directZodiacs: ZodiacName[];
   values: string[];
+  uniqueValues: string[];
   usesFilterGroups: boolean;
   hasRecognizedContent: boolean;
 };
@@ -212,7 +213,7 @@ function collectResolvedFilters(subject: string, referenceDate: string | null | 
 }
 
 export function resolveTemaSubject(subject: string, referenceDate: string | null | undefined): ResolvedTemaSubject {
-  const directNumbers = uniqueValues(Array.from(subject.matchAll(/\d{1,2}/g)).map(([value]) => normalizeNumberToken(value)));
+  const directNumbers = Array.from(subject.matchAll(/\d{1,2}/g)).map(([value]) => normalizeNumberToken(value));
   const directZodiacs = extractZodiacs(subject);
   const directZodiacNumbers = uniqueValues(directZodiacs.flatMap((zodiac) => getNumbersForZodiac(zodiac, referenceDate)));
   const resolvedFilters = collectResolvedFilters(subject, referenceDate);
@@ -224,16 +225,22 @@ export function resolveTemaSubject(subject: string, referenceDate: string | null
       directNumbers,
       directZodiacs,
       values: [],
+      uniqueValues: [],
       usesFilterGroups,
       hasRecognizedContent: false
     };
   }
 
   if (!usesFilterGroups) {
+    const uniqueDirectNumbers = uniqueValues(directNumbers);
+    const appendedZodiacNumbers = directZodiacNumbers.filter((value) => !uniqueDirectNumbers.includes(value));
+    const uniqueValuesForDisplay = uniqueValues([...uniqueDirectNumbers, ...directZodiacNumbers]);
+
     return {
       directNumbers,
       directZodiacs,
-      values: uniqueValues([...directNumbers, ...directZodiacNumbers]),
+      values: directNumbers.length > 0 ? [...directNumbers, ...appendedZodiacNumbers] : [...directZodiacNumbers],
+      uniqueValues: uniqueValuesForDisplay,
       usesFilterGroups,
       hasRecognizedContent: true
     };
@@ -255,6 +262,7 @@ export function resolveTemaSubject(subject: string, referenceDate: string | null
     directNumbers,
     directZodiacs,
     values: orderNatural(resolvedSet),
+    uniqueValues: orderNatural(resolvedSet),
     usesFilterGroups,
     hasRecognizedContent: true
   };
